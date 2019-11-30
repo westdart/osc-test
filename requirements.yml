@@ -1,0 +1,10 @@
+# From 'openshift-applier'
+- src: https://github.com/redhat-cop/openshift-applier
+  version: v2.1.2
+# From 'openshift-labels'
+- src: https://github.com/redhat-cop/casl-ansible.git
+  version: v3.11.4
+
+# Get the roles under development
+- src: git@github.com:westdart/ar_osc_aspera.git
+

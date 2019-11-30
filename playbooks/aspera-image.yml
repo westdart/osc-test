@@ -1,0 +1,39 @@
+---
+- name: Build and Push Aspera image
+  hosts: localhost
+
+  vars:
+    target_app_instance_names: "{{ targets | default(app_instances | json_query('[*].name')) }}"
+    target_app_instances: "{{ app_instances | select_from_array_of_dicts('name', target_app_instance_names) }}"
+
+  vars_files:
+    - "{{ amq_interconnect_instances_file }}"
+    - "{{ amq_secrets_file | default(generated_config_dir + '/mjdi.vault') }}"
+
+  tasks:
+#    # Generate the aspera config for each instance
+#    - name: "Include aspera_config role for {{ aspera_instance.name }}"
+#      include_role:
+#        name: aspera_config
+#      vars:
+#        aspera_config_ssh_port:     "{{ aspera_config_sshd_internal_port }}"
+#        aspera_config_dest:         "{{ generated_config_dir }}/templates/{{ aspera_instance.name }}"
+#        aspera_config_k8s_template: "{{ aspera_template }}"
+#      when: "aspera_instance.incomingAddressList | length > 0"
+#      with_items:
+#        - "{{ target_app_instances }}"
+#      loop_control:
+#        loop_var: aspera_instance
+
+
+    - name: Build and Push Aspera images
+      include_role:
+        name: aspera_config
+        tasks_from: docker
+      vars:
+        aspera_config_dest: "{{ generated_config_dir }}/docker"
+        aspera_config_docker_registry: "{{ docker_registry }}"
+        aspera_config_docker_registry_dest_path: "{{ amqic_image_ns }}"
+        aspera_config_package_base_url: "{{ package_repository }}"
+        aspera_config_local_docker: "{{ aspera_docker_base_path is not defined }}"
+      when: deploy_aspera is defined and deploy_aspera

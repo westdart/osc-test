@@ -2,12 +2,13 @@
 # Helper for building the amq broker and interconnect applications
 #
 
-ADDITONAL_ARGS_PATTERN='+(-t|--targets|-i|--interconnects|-p|--passphrase|-x|--extra-vars)'
+ADDITONAL_ARGS_PATTERN='+(-t|--target|-i|--interconnects|-p|--passphrase|-x|--extra-vars|--tags|--skip-tags)'
 ADDITONAL_SWITCHES_PATTERN='+(-s|--suppresscheckin)'
 
 source "$(dirname ${BASH_SOURCE[0]})/wrapper.sh"
 
 TAGS=
+SKIP_TAGS=
 CHECKIN=true
 EXTRA_VARS=
 
@@ -18,33 +19,23 @@ function extraArgsClause() {
 function getTargetsAsJsonArray()
 {
     local result='{"targets": ['
-    for target in $TARGETS
-    do
-        result="${result}\"${target}\","
-    done
-    result="${result::-1}]}"
+    result="${result}\"${TARGET}\"]}"
     echo -e "${result}"
 }
 
 function getTargetsAsString()
 {
-    local result=
-    for target in $TARGETS
-    do
-        result="${result}_${target}"
-    done
-    echo "${result:1}"
+    echo "${TARGET}"
+}
+
+function getTargetsAsLowercase()
+{
+    echo "$TARGET" | tr '[:upper:]' '[:lower:]'
 }
 
 function getTargetSeedHosts()
 {
-    local result=
-    local target=
-    for target in $TARGETS
-    do
-        result="$result:$target-seed-hosts"
-    done
-    echo "${result:1}"
+    echo "seed-hosts"
 }
 
 function getAbsFileName()
@@ -54,16 +45,10 @@ function getAbsFileName()
 
 function playbookDir()
 {
-    getAbsFileName "${SOURCE_PATH}/../ansible/playbooks"
+    getAbsFileName "${SOURCE_PATH}/../playbooks"
 }
 
-function vaultFile()
-{
-    # This is now defaulted in the ansible playbooks to the same
-    echo $(getAbsFileName "generated")/$(getDeploymentPhase)/mjdi.vault
-}
-
-function getInconnectFile()
+function getAppDefFile()
 {
     [[ -f "${INTERCONNETS}" ]] && { getAbsFileName ${INTERCONNETS}; return 0; }
     [[ -f "varfiles/${INTERCONNETS}.yml" ]] && { getAbsFileName varfiles/${INTERCONNETS}.yml; return 0; }
@@ -71,7 +56,26 @@ function getInconnectFile()
 
 function getDeploymentPhase()
 {
-    egrep "^deployment_phase:[[:space:]]*'[A-Z0-9]*'" $(getInconnectFile) | awk -F "'" '{print $2}'
+    egrep "^deployment_phase:[[:space:]]*'[A-Z0-9]*'" $(getAppDefFile) | awk -F "'" '{print $2}'
+}
+
+function getGeneratedDir()
+{
+     echo "/apps/environments/$(getDeploymentPhase)/generated"
+}
+
+function getInventoryPath()
+{
+    local app_instance_name=$1
+    local app_name=$2
+
+    echo "$(getGeneratedDir)/${app_instance_name}/${app_name}/inventory"
+}
+
+function vaultFile()
+{
+    # This is now defaulted in the ansible playbooks to the same
+    echo $(getGeneratedDir)/mjdi.vault
 }
 
 function executeCommand()
@@ -81,60 +85,63 @@ function executeCommand()
     local tag_clause=""
     [[ ! -z "${PASSWORD_FILE}" ]] && trap_clause="trap 'rm -f ${PASSWORD_FILE}' SIGINT ;"
     [[ ! -z "${TAGS}" ]] && tag_clause=" --tags ${TAGS}"
+    [[ ! -z "${SKIP_TAGS}" ]] && skip_tag_clause=" --skip-tags ${SKIP_TAGS}"
 
     log_info "Command: ${cmd}${tag_clause}"
 
-    eval "echo \"${trap_clause}${cmd}${tag_clause}\" | /bin/bash"
+    eval "echo \"${trap_clause}${cmd}${tag_clause}${skip_tag_clause}\" | /bin/bash"
 }
 
-function generateSecrets()
+function setup_tls()
+{
+    local cmd="ansible-playbook $(playbookDir)/setup-tls.yml \
+      --extra-vars \"amq_interconnect_instances_file=$(getAppDefFile)\" \
+      --extra-vars '$(getTargetsAsJsonArray)' $(extraArgsClause)"
+    executeCommand "$cmd"
+}
+
+function generate_secrets()
 {
     local cmd="ansible-playbook $(playbookDir)/generate-secrets.yml \
       --extra-vars \"amq_vault_passphrase=${PASSPHRASE}\" \
-      --extra-vars \"amq_interconnect_instances_file=$(getInconnectFile)\" \
+      --extra-vars \"amq_interconnect_instances_file=$(getAppDefFile)\" \
       --extra-vars '$(getTargetsAsJsonArray)' $(extraArgsClause)"
     executeCommand "$cmd"
 }
 
-function generateCertificates()
+function amq_broker()
 {
-    local cmd="ansible-playbook $(playbookDir)/setup-tls.yml \
-      --extra-vars \"amq_interconnect_instances_file=$(getInconnectFile)\" \
-      --extra-vars '$(getTargetsAsJsonArray)' $(extraArgsClause)"
-    executeCommand "$cmd"
-}
-
-function deployAspera()
-{
-    local cmd="ansible-playbook $(playbookDir)/aspera.yml -i generated/$(getDeploymentPhase)/inventory \
+    local cmd="ansible-playbook $(playbookDir)/amq-broker.yml -i $(getInventoryPath "$(getTargetsAsLowercase)" 'amqbroker') \
       --extra-vars \"target_seed_hosts=$(getTargetSeedHosts)\" \
-      --extra-vars \"amq_interconnect_instances_file=$(getInconnectFile)\" \
+      --extra-vars \"amq_interconnect_instances_file=$(getAppDefFile)\" \
       --extra-vars '$(getTargetsAsJsonArray)' --vault-id psp@${PASSWORD_FILE} $(extraArgsClause)"
     executeCommand "$cmd"
 }
 
-function checkin()
+function amq_interconnect()
 {
-    ${CHECKIN} || { log_warn "Suppressing any potential git commit/push"; return 0; }
-    local cmd="ansible-playbook $(playbookDir)/git-checkin.yml -i generated/$(getDeploymentPhase)/inventory \
+    local cmd="ansible-playbook $(playbookDir)/amq-interconnect.yml -i $(getInventoryPath "$(getTargetsAsLowercase)" 'amqinterconnect') \
       --extra-vars \"target_seed_hosts=$(getTargetSeedHosts)\" \
-      --extra-vars \"amq_interconnect_instances_file=$(getInconnectFile)\" $(extraArgsClause)"
+      --extra-vars \"amq_interconnect_instances_file=$(getAppDefFile)\" \
+      --extra-vars '$(getTargetsAsJsonArray)' --vault-id psp@${PASSWORD_FILE} $(extraArgsClause)"
     executeCommand "$cmd"
 }
 
-function createAsperaImages()
+function aspera()
 {
-    local cmd="ansible-playbook $(playbookDir)/aspera-image.yml \
-      --extra-vars \"amq_interconnect_instances_file=$(getInconnectFile)\" $(extraArgsClause) \
-      --vault-id psp@${PASSWORD_FILE}"
+    local cmd="ansible-playbook $(playbookDir)/aspera.yml -i $(getInventoryPath "$(getTargetsAsLowercase)" 'aspera') \
+      --extra-vars \"target_seed_hosts=$(getTargetSeedHosts)\" \
+      --extra-vars \"amq_interconnect_instances_file=$(getAppDefFile)\" \
+      --extra-vars '$(getTargetsAsJsonArray)' --vault-id psp@${PASSWORD_FILE} $(extraArgsClause)"
     executeCommand "$cmd"
 }
+
 
 function executeScript()
 {
-    local cmd="ansible-playbook $(playbookDir)/main.yml -i generated/$(getDeploymentPhase)/inventory \
+    local cmd="ansible-playbook $(playbookDir)/main.yml -i $(getInventoryPath "$(getTargetsAsLowercase)" 'amqbroker') \
       --extra-vars \"target_seed_hosts=$(getTargetSeedHosts)\" \
-      --extra-vars \"amq_interconnect_instances_file=$(getInconnectFile)\" \
+      --extra-vars \"amq_interconnect_instances_file=$(getAppDefFile)\" \
       --extra-vars '$(getTargetsAsJsonArray)' --vault-id psp@${PASSWORD_FILE} $(extraArgsClause)"
     executeCommand "$cmd"
 }
@@ -157,8 +164,8 @@ function extractArgs()
         optarg="$2"
       fi
       case ${arg_key} in
-        -t|--targets)
-            setOption "${arg_key}" "TARGETS" "$(echo "${optarg}" | tr ',' ' ')"
+        -t|--target)
+            setOption "${arg_key}" "TARGET" "$(echo "${optarg}" | tr ',' ' ')"
             shift # past argument
             ;;
         -i|--interconnects)
@@ -180,11 +187,15 @@ function extractArgs()
             setOption "${arg_key}" "TAGS" "${optarg}"
             shift # past argument
             ;;
+        --skip-tags)
+            setOption "${arg_key}" "SKIP_TAGS" "${optarg}"
+            shift # past argument
+            ;;
       esac
       shift # past argument or value
     done
 
-    [[ -z "${TARGETS}" ]] && { log_error "Require a comma separated list (-t)"; return 1; }
+    [[ -z "${TARGET}" ]] && { log_error "Require a comma separated list (-t)"; return 1; }
 
     [[ -z "${INTERCONNETS}" ]] && { log_error "Require an interconnect filename (-i)"; return 1; }
 

@@ -1,0 +1,32 @@
+---
+- name: Deploy Aspera Containers
+  hosts: localhost
+
+  vars:
+    app_target_instance_names: "{{ targets | default(app_instances | json_query('[*].name')) }}"
+    app_target_instances: "{{ app_instances | select_from_array_of_dicts('name', app_target_instance_names) }}"
+    generated_config_path: "{{ generated_config_dir }}"
+
+  vars_files:
+    - "{{ amq_interconnect_instances_file }}"
+    - "{{ amq_secrets_file | default(generated_config_dir + '/mjdi.vault') }}"
+
+  tasks:
+    ####################################################################################################################
+    - name: "Generate the aspera config for each instance"
+      include_role:
+        name: ar_osc_aspera
+      vars:
+        ar_osc_aspera_ns:               "{{ ar_osc_aspera_instance | app_namespace(deployment_phase) }}"
+        ar_osc_aspera_name:             "{{ ar_osc_aspera_instance | app_common_name }}"
+        ar_osc_aspera_config_dest:      "{{ generated_config_path }}/{{ ar_osc_aspera_instance | app_common_name }}"
+        ar_osc_aspera_k8s_template:     "{{ aspera_template }}"
+        ar_osc_aspera_docker_registry:  "{{ docker_registry }}"
+        ar_osc_aspera_package_base_url: "{{ package_repository }}"
+      when: "ar_osc_aspera_instance.incomingAddressList | length > 0"
+      with_items:
+        - "{{ app_target_instances }}"
+      loop_control:
+        loop_var: ar_osc_aspera_instance
+      tags:
+        - all

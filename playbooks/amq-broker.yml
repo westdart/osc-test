@@ -1,0 +1,44 @@
+---
+# The variable 'targets' can be used to specify which applications the execution should target. This defaults to all.
+# To override, on the ansible command line, (for example) add: --extra-vars '{"targets": ["MESH","TRG001","TRG101"]}'
+# - note, this should be in json format
+
+- name: Setup AMQ Broker
+  hosts: localhost
+
+  vars:
+    app_target_instance_names: "{{ targets | default(app_instances | json_query('[*].name')) }}"
+    app_target_instances: "{{ app_instances | select_from_array_of_dicts('name', app_target_instance_names) }}"
+    generated_config_path: "{{ generated_config_dir }}"
+
+  vars_files:
+    - "{{ amq_interconnect_instances_file }}"
+    - "{{ amq_secrets_file | default(generated_config_dir + '/mjdi.vault') }}"
+
+  tasks:
+    - debug: var=app_target_instance_names
+
+    - name: Show targets
+      debug:
+        msg: "Target instance names: {{ app_target_instance_names }}"
+
+    - name: Show target instances
+      debug: var=app_target_instances verbosity=2
+
+    - name: "Include ar_osc_amqbroker role in loop across target instances"
+      include_role:
+        name: ar_osc_amqbroker
+      vars:
+        ar_osc_amqbroker_ns:              "{{ ar_osc_amqbroker_instance | app_namespace(deployment_phase) }}"
+        ar_osc_amqbroker_name:            "{{ ar_osc_amqbroker_instance | app_common_name }}"
+        ar_osc_amqbroker_config_dest:     "{{ generated_config_path }}/{{ ar_osc_amqbroker_instance | app_common_name }}"
+        ar_osc_amqbroker_k8s_template:    "{{ amqbroker_template }}"
+        ar_osc_amqbroker_admin_username:  "{{ secrets[ar_osc_amqbroker_instance | app_common_name ].amq_admin_username }}"
+        ar_osc_amqbroker_admin_password:  "{{ secrets[ar_osc_amqbroker_instance | app_common_name ].amq_admin_password }}"
+        ar_osc_amqbroker_user_roles:      [{ name: "amqsystemuser", role: "user"   },
+                                           { name: "amqviewer",     role: "viewer" }]
+      with_items:
+        - "{{ app_target_instances }}"
+      when: "ar_osc_amqbroker_instance.incomingAddressList | length > 0"
+      loop_control:
+        loop_var: ar_osc_amqbroker_instance

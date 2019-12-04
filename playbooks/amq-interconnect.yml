@@ -1,0 +1,56 @@
+---
+# The variable 'targets' can be used to specify which applications the execution should target. This defaults to all.
+# To override, on the ansible command line, (for example) add: --extra-vars '{"targets": ["MESH","TRG001","TRG101"]}'
+# - note, this should be in json format
+
+- name: Setup AMQ Broker
+  hosts: localhost
+
+  vars:
+    app_target_instance_names: "{{ targets | default(app_instances | json_query('[*].name')) }}"
+    app_target_instances: "{{ app_instances | select_from_array_of_dicts('name', app_target_instance_names) }}"
+    generated_config_path: "{{ generated_config_dir }}"
+    ca_name: "{{ signing_authority | default('ca1') }}"
+    ca_base_path: "{{ tls_ca_git_repo_path }}/{{ ca_name }}"
+    local_cert_path: "{{ generated_config_dir }}/certs"
+
+  vars_files:
+    - "{{ amq_interconnect_instances_file }}"
+    - "{{ amq_secrets_file | default(generated_config_dir + '/mjdi.vault') }}"
+
+  tasks:
+    - debug: var=app_target_instance_names
+
+    - name: Show targets
+      debug:
+        msg: "Target instance names: {{ app_target_instance_names }}"
+
+    - name: Show target instances
+      debug: var=app_target_instances verbosity=2
+
+    - name: "Include ar_osc_amqinterconnect role in loop across target instances"
+      include_role:
+        name: ar_osc_amqinterconnect
+      vars:
+        ar_osc_amqinterconnect_ns:              "{{ ar_osc_amqinterconnect_instance | app_namespace(deployment_phase) }}"
+        ar_osc_amqinterconnect_name:            "{{ ar_osc_amqinterconnect_instance | app_common_name }}"
+        ar_osc_amqinterconnect_config_dest:     "{{ generated_config_path }}/{{ ar_osc_amqinterconnect_instance | app_common_name }}"
+        ar_osc_amqinterconnect_k8s_template:    "{{ amqic_template }}"
+        ar_osc_amqinterconnect_ca_cert:         "{{ ca_name }}.crt"
+        ar_osc_amqinterconnect_ic_username:     "{{ secrets[ar_osc_amqinterconnect_instance | app_common_name].ic_username }}"
+        ar_osc_amqinterconnect_ic_password:     "{{ secrets[ar_osc_amqinterconnect_instance | app_common_name].ic_password }}"
+        ar_osc_amqinterconnect_domain:          "{{ amq_ic_domain }}"
+        ar_osc_amqinterconnect_broker_username: "{{ broker_ic_user | default(secrets[ar_osc_amqinterconnect_instance | app_common_name].amq_admin_username) }}"
+        ar_osc_amqinterconnect_broker_password: "{{ secrets[ar_osc_amqinterconnect_instance | app_common_name][broker_ic_user] if broker_ic_user is defined else secrets[ar_osc_amqinterconnect_instance | app_common_name ].amq_admin_password }}"
+        ar_osc_amqinterconnect_tls_key:         "{{ secrets[ar_osc_amqinterconnect_instance | app_common_name].tls_key }}"
+        CA_CONTENT:                             "{{ lookup('file', local_cert_path + '/' + ca_name + '.crt') }}"
+        CERT_CONTENT:                           "{{ lookup('file', local_cert_path + '/' + ar_osc_amqinterconnect_instance.name + '.crt') }}"
+      with_items:
+        - "{{ app_target_instances }}"
+      loop_control:
+        loop_var: ar_osc_amqinterconnect_instance
+
+
+
+
+

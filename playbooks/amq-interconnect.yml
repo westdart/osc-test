@@ -13,6 +13,7 @@
     ca_name: "{{ signing_authority | default('ca1') }}"
     ca_base_path: "{{ ar_tls_ca_git_repo_path }}/{{ ca_name }}"
     local_cert_path: "{{ generated_config_dir }}/certs"
+    tasks: 'main'
 
   vars_files:
     - "{{ app_instances_file }}"
@@ -31,6 +32,7 @@
     - name: "Include ar_osc_amqinterconnect role in loop across target instances"
       include_role:
         name: ar_osc_amqinterconnect
+        tasks_from: "{{ tasks }}"
       vars:
         ar_osc_amqinterconnect_ns:              "{{ ar_osc_amqinterconnect_instance | app_namespace(deployment_phase) }}"
         ar_osc_amqinterconnect_name:            "{{ ar_osc_amqinterconnect_instance | app_common_name }}"

@@ -10,6 +10,7 @@
     app_target_instance_names: "{{ targets | default(app_instances | json_query('[*].name')) }}"
     app_target_instances: "{{ app_instances | select_from_array_of_dicts('name', app_target_instance_names) }}"
     generated_config_path: "{{ generated_config_dir }}"
+    tasks: 'main'
 
   vars_files:
     - "{{ app_instances_file }}"
@@ -28,6 +29,7 @@
     - name: "Include ar_osc_amqbroker role in loop across target instances"
       include_role:
         name: ar_osc_amqbroker
+        tasks_from: "{{ tasks }}"
       vars:
         ar_osc_amqbroker_ns:              "{{ ar_osc_amqbroker_instance | app_namespace(deployment_phase) }}"
         ar_osc_amqbroker_name:            "{{ ar_osc_amqbroker_instance | app_common_name }}"

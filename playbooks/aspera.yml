@@ -8,7 +8,7 @@
     generated_config_path: "{{ generated_config_dir }}"
 
   vars_files:
-    - "{{ amq_interconnect_instances_file }}"
+    - "{{ app_instances_file }}"
     - "{{ amq_secrets_file | default(generated_config_dir + '/mjdi.vault') }}"
 
   tasks:

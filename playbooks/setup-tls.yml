@@ -7,31 +7,31 @@
 
   vars:
     ca_name: "{{ signing_authority | default('ca1') }}"
-    ca_base_path: "{{ tls_ca_git_repo_path }}/{{ ca_name }}"
+    ca_base_path: "{{ ar_tls_ca_git_repo_path }}/{{ ca_name }}"
     local_cert_path: "{{ generated_config_dir }}/certs"
     local_key_path: "{{ lookup('env','HOME') }}/keys/local"
-    amq_ic_target_instance_names: "{{ app_instances | json_query('[*].name') }}"
-    amq_ic_target_instances: "{{ app_instances }}"
+    app_target_instance_names: "{{ app_instances | json_query('[*].name') }}"
+    app_target_instances: "{{ app_instances }}"
 
   vars_files:
-    - "{{ amq_interconnect_instances_file }}"
+    - "{{ app_instances_file }}"
 
   tasks:
-    - debug: var=amq_ic_target_instance_names
+    - debug: var=app_target_instance_names
 
     - name: Show targets
       debug:
-        msg: "Target instance names: {{ amq_ic_target_instance_names }}"
+        msg: "Target instance names: {{ app_target_instance_names }}"
 
     - name: Show target instances
-      debug: var=amq_ic_target_instances verbosity=2
+      debug: var=app_target_instances verbosity=2
 
     - name: "Setup CA"
       include_role:
-        name: tls_ca
+        name: ar_tls_ca
       vars:
-        tls_ca_path: "{{ ca_base_path }}"
-        tls_ca_name: "{{ ca_name }}"
+        ar_tls_ca_path: "{{ ca_base_path }}"
+        ar_tls_ca_name: "{{ ca_name }}"
 
     - name: Ensure local cert directory exists
       file:
@@ -45,14 +45,14 @@
     - debug:
         msg: "{{ item.name }} Checking Cert Subject: {{ item | cert_subject_x509(deployment_phase, cert_defaults) }}"
       with_items:
-        - "{{ amq_ic_target_instances }}"
+        - "{{ app_target_instances }}"
 
     - name: Check if CSR needs to be recreated (i.e. if subject has changed)
       shell: "test -f {{ local_cert_path }}/{{ item.name }}.csr || exit 0; openssl req -in {{ local_cert_path }}/{{ item.name }}.csr -noout -subject"
       register: csr_stat
       changed_when: csr_stat.stdout | cert_subject_differs(item, deployment_phase, cert_defaults)
       with_items:
-        - "{{ amq_ic_target_instances }}"
+        - "{{ app_target_instances }}"
 
     - name: Remove old CSRs
       file:
@@ -66,12 +66,12 @@
     - debug:
         msg: "{{ item.name }} Setting Cert Subject: {{ item | cert_subject(deployment_phase, cert_defaults) }}"
       with_items:
-        - "{{ amq_ic_target_instances }}"
+        - "{{ app_target_instances }}"
 
     - debug:
         msg: "Generating key and CSR: {{ local_key_path }}/{{ item.name }}.key -> {{ local_cert_path }}/{{ item.name }}.csr -> {{ ca_base_path }}/in/{{ item.name }}.csr"
       with_items:
-        - "{{ amq_ic_target_instances }}"
+        - "{{ app_target_instances }}"
 
     - name: Generate Keys and CSRs
       shell: "openssl req -nodes -batch \
@@ -82,14 +82,14 @@
       args:
         creates: "{{ local_cert_path }}/{{ item.name }}.csr"
       with_items:
-        - "{{ amq_ic_target_instances }}"
+        - "{{ app_target_instances }}"
 
     - name: Copy CSR to CA
       copy:
         src: "{{ local_cert_path }}/{{ item.name }}.csr"
         dest: "{{ ca_base_path }}/in/{{ item.name }}.csr"
       with_items:
-        - "{{ amq_ic_target_instances }}"
+        - "{{ app_target_instances }}"
 
     - set_fact:
         revocation_list: []
@@ -104,17 +104,17 @@
 
     - name: "Use CA to revoke certificates"
       include_role:
-        name: tls_ca
+        name: ar_tls_ca
         tasks_from: sign
       vars:
-        tls_ca_path: "{{ ca_base_path }}"
-        tls_ca_name: "{{ ca_name }}"
-        tls_ca_certlist: []
-        tls_ca_revocation_list: "{{ revocation_list }}"
+        ar_tls_ca_path: "{{ ca_base_path }}"
+        ar_tls_ca_name: "{{ ca_name }}"
+        ar_tls_ca_certlist: []
+        ar_tls_ca_revocation_list: "{{ revocation_list }}"
 
     - name: "Use CA to sign certificates"
       include_role:
-        name: tls_ca
+        name: ar_tls_ca
         tasks_from: sign
       vars:
         tls_ca_path: "{{ ca_base_path }}"
@@ -123,12 +123,12 @@
           {"certfile": "{{ item.name }}.crt", "csrfile": "{{ item.name }}.csr", "altnames": ["{{ item | external_ic_host(deployment_phase, amq_ic_domain) }}"], "ipaddrs": []}
         ]
       with_items:
-        - "{{ amq_ic_target_instances }}"
+        - "{{ app_target_instances }}"
 
     - name: Copy the signed certs from CA
       copy:
         src: "{{ ca_base_path }}/out/{{ item }}.crt"
         dest: "{{ local_cert_path }}/{{ item }}.crt"
       with_items:
-        - "{{ amq_ic_target_instances | json_query('[*].name') }}"
+        - "{{ app_target_instances | json_query('[*].name') }}"
         - "{{ ca_name }}"

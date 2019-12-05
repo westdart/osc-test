@@ -14,3 +14,11 @@
 # Get the roles under development
 - src: https://github.com/westdart/ar_osc_aspera.git
 
+# Get the roles under development
+- src: https://github.com/westdart/ar_os_scc_binding.git
+
+# Get the roles under development
+- src: https://github.com/westdart/ar_tls_ca.git
+
+# Get the roles under development
+- src: https://github.com/westdart/ar_osc_common_templates.git

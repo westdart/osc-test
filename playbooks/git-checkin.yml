@@ -1,0 +1,19 @@
+---
+- hosts: localhost
+
+  vars_files:
+    - "{{ app_instances_file }}"
+
+  tasks:
+    - name: Check if git status has changed
+      shell: cd {{ envdir }} && git status --porcelain {{ deployment_phase }}/generated | wc -l
+      register: git_status
+      changed_when: false
+
+    - name: Add any additional or updated generated files to git
+      shell: cd {{ envdir }} && git reset HEAD && git add {{ deployment_phase }}/generated
+      when: git_status.stdout != "0"
+
+    - name: Commit and push changes to git
+      shell: cd {{ envdir }} && git commit -m "Generated config file changes as of {{ ansible_date_time.date }} {{ ansible_date_time.time }}" && git push
+      when: git_status.stdout != "0"

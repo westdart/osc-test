@@ -103,7 +103,7 @@ function setup_tls()
 function generate_secrets()
 {
     local cmd="ansible-playbook $(playbookDir)/generate-secrets.yml \
-      --extra-vars \"amq_vault_passphrase=${PASSPHRASE}\" \
+      --extra-vars \"app_vault_passphrase=${PASSPHRASE}\" \
       --extra-vars \"app_instances_file=$(getAppDefFile)\" \
       --extra-vars '$(getTargetsAsJsonArray)' $(extraArgsClause)"
     executeCommand "$cmd"
@@ -112,7 +112,7 @@ function generate_secrets()
 function checkin()
 {
     local cmd="ansible-playbook $(playbookDir)/git-checkin.yml \
-      --extra-vars \"amq_vault_passphrase=${PASSPHRASE}\" \
+      --extra-vars \"app_vault_passphrase=${PASSPHRASE}\" \
       --extra-vars \"app_instances_file=$(getAppDefFile)\" \
       --extra-vars '$(getTargetsAsJsonArray)' $(extraArgsClause)"
     executeCommand "$cmd"

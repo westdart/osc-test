@@ -7,18 +7,24 @@
 
 # Get the roles under development
 - src: https://github.com/westdart/ar_osc_amqbroker.git
+  version: v1.0
 
 # Get the roles under development
 - src: https://github.com/westdart/ar_osc_amqinterconnect.git
+  version: v1.0
 
 # Get the roles under development
 - src: https://github.com/westdart/ar_osc_aspera.git
+  version: v1.0
 
 # Get the roles under development
 - src: https://github.com/westdart/ar_os_scc_binding.git
+  version: v1.0
 
 # Get the roles under development
 - src: https://github.com/westdart/ar_tls_ca.git
+  version: v1.0
 
 # Get the roles under development
 - src: https://github.com/westdart/ar_osc_common_templates.git
+  version: v1.0

@@ -109,6 +109,28 @@ function set_json_central_to_deployed_using_docker_net()
              33001
 }
 
+function set_json_central_to_deployed()
+{
+    set_json ${CENTRAL_COMPUTE_NODE} \
+             ${CENTRAL_TOKEN} \
+             ${DEPLOYED_COMPUTE_NODE} \
+             ${DEPLOYED_TOKEN} \
+             ${CENTRAL_DEPLOYED_FILE} \
+             ${DEPLOYED_SSH_PORT} \
+             ${DEPLOYED_FASP_PORT}
+}
+
+function set_json_deployed_to_central()
+{
+    set_json ${DEPLOYED_COMPUTE_NODE} \
+             ${DEPLOYED_TOKEN} \
+             ${CENTRAL_COMPUTE_NODE} \
+             ${CENTRAL_TOKEN} \
+             ${DEPLOYED_CENTRAL_FILE} \
+             ${CENTRAL_SSH_PORT} \
+             ${CENTRAL_FASP_PORT}
+}
+
 function test_curl()
 {
     cmd=$@
@@ -129,22 +151,38 @@ function check_access_keys()
 
 function do_central_send()
 {
-#    export JSON=$(echo "'"$(printf '{"direction":"send","remote_host":"%s","remote_user":"%s","remote_password":"%s","token":"Basic %s","fasp_port":%s,"ssh_port":%s,"paths":[{"source":"/out/%s","destination":"/in/%s"}]}' \
-# ${DEPLOYED_HOST} ${ASPERA_USER} ${ASPERA_PASSWORD} ${DEPLOYED_TOKEN} ${DEPLOYED_FASP_PORT} ${DEPLOYED_SSH_PORT} ${CENTRAL_DEPLOYED_FILE} ${CENTRAL_DEPLOYED_FILE})"'")
-
-    [[ -z "$JSON" ]] && set_json "CENTRAL"
+    [[ -z "$JSON" ]] && set_json_central_to_deployed
     log_info "Posting the following JSON:\n ${JSON}"
 
     id=$(eval $(echo curl -k -H \"Authorization: Basic ${CENTRAL_TOKEN}\" -X POST https://${CENTRAL_HOST}/ops/transfers -d ${JSON}) | jq '.id' | awk -F '"' '{print $2}')
-#    get_transfer_status $id
     echo "$id"
     export TX_ID=$id
+    get_central_transfer_status
+    echo "use 'get_central_transfer_status' to get update on status"
 }
 
-function get_transfer_status()
+function do_deployed_send()
+{
+    [[ -z "$JSON" ]] && set_json_deployed_to_central
+    log_info "Posting the following JSON:\n ${JSON}"
+
+    id=$(eval $(echo curl -k -H \"Authorization: Basic ${DEPLOYED_TOKEN}\" -X POST https://${DEPLOYED_HOST}/ops/transfers -d ${JSON}) | jq '.id' | awk -F '"' '{print $2}')
+    echo "$id"
+    export TX_ID=$id
+    get_deployed_transfer_status
+    echo "use 'get_deployed_transfer_status' to get update on status"
+}
+
+function get_central_transfer_status()
 {
     local id=$1
     curl -ki -H "Authorization: Basic ${CENTRAL_TOKEN}" -X GET https://${CENTRAL_HOST}/ops/transfers/${id}
+}
+
+function get_deployed_transfer_status()
+{
+    local id=$1
+    curl -ki -H "Authorization: Basic ${DEPLOYED_TOKEN}" -X GET https://${DEPLOYED_HOST}/ops/transfers/${id}
 }
 
 function print_env()

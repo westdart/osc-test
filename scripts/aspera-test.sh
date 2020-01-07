@@ -1,8 +1,23 @@
 #!/usr/bin/env bash
+#
+# Instruction: source this file first then use the functions to test.
+# Setup: 't1c' and 't2c' are aliases that establish a login session on the respective cluster
+# Functions:
+#   do_central_send              : Instigate sending a file from Central to Deployed
+#   do_deployed_send             : Instigate sending a file from Deployed to Central
+#   get_central_transfer_status  : Get the status of the central file transfer
+#   get_deployed_transfer_status : Get the status of the deployed file transfer
+#   print_env                    : Print the environment variables used in tests
+#
 source "$(dirname ${BASH_SOURCE[0]})/logger.sh"
 
+shopt -s expand_aliases
 RED='\033[1;31m'
 NC='\033[0m' # No Color
+
+alias osmh='grep ${ENV_ID}.master /etc/hosts | awk '"'"'{print $NF}'"'"
+alias t1c='export ENV_ID=t1 && oc login https://$(osmh):8443 -u admin -p password > /dev/null'
+alias t2c='export ENV_ID=t2 && oc login https://$(osmh):8443 -u admin -p password > /dev/null'
 
 export CENTRAL_CLUSTER=t1
 export DEPLOYED_CLUSTER=t2
@@ -13,6 +28,7 @@ export DEPLOYED_NS='test101-dev'
 export ASPERA_USER=aspera
 export ASPERA_PASSWORD=GFQDprRXGwGkPNeIbdadpoHaz
 
+t1c
 export ENV_ID=${CENTRAL_CLUSTER} && oc login https://$(osmh):8443 -u admin -p password > /dev/null
 export CENTRAL_HOST=$(oc get route -n ${CENTRAL_NS} | grep '\-aspera-api' | awk '{print $2}')
 export CENTRAL_DEPLOYED_FILE=centralToDeployedFile.txt
@@ -24,6 +40,7 @@ export CENTRAL_FASP_PORT=30002
 export CENTRAL_COMPUTE_NODE=$(oc get nodes -l "node-role.kubernetes.io/compute=true" | tail -n1 | awk '{print $1}')
 export CENTRAL_MASTER_NODE=$(oc get nodes -l "node-role.kubernetes.io/master=true" | tail -n1 | awk '{print $1}')
 
+t2c
 export ENV_ID=${DEPLOYED_CLUSTER} && oc login https://$(osmh):8443 -u admin -p password > /dev/null
 export DEPLOYED_HOST=$(oc get route -n ${DEPLOYED_NS} | grep '\-aspera-api' | awk '{print $2}')
 export DEPLOYED_CENTRAL_FILE=deployedToCentralFile.txt
@@ -155,10 +172,10 @@ function do_central_send()
     log_info "Posting the following JSON:\n ${JSON}"
 
     id=$(eval $(echo curl -k -H \"Authorization: Basic ${CENTRAL_TOKEN}\" -X POST https://${CENTRAL_HOST}/ops/transfers -d ${JSON}) | jq '.id' | awk -F '"' '{print $2}')
-    echo "$id"
     export TX_ID=$id
     get_central_transfer_status
     echo "use 'get_central_transfer_status' to get update on status"
+    echo "TX_ID=$id"
 }
 
 function do_deployed_send()
@@ -167,21 +184,23 @@ function do_deployed_send()
     log_info "Posting the following JSON:\n ${JSON}"
 
     id=$(eval $(echo curl -k -H \"Authorization: Basic ${DEPLOYED_TOKEN}\" -X POST https://${DEPLOYED_HOST}/ops/transfers -d ${JSON}) | jq '.id' | awk -F '"' '{print $2}')
-    echo "$id"
     export TX_ID=$id
     get_deployed_transfer_status
     echo "use 'get_deployed_transfer_status' to get update on status"
+    echo "TX_ID=$id"
 }
 
 function get_central_transfer_status()
 {
     local id=$1
+    [[ -z "$id" ]] && id=$TX_ID
     curl -ki -H "Authorization: Basic ${CENTRAL_TOKEN}" -X GET https://${CENTRAL_HOST}/ops/transfers/${id}
 }
 
 function get_deployed_transfer_status()
 {
     local id=$1
+    [[ -z "$id" ]] && id=$TX_ID
     curl -ki -H "Authorization: Basic ${DEPLOYED_TOKEN}" -X GET https://${DEPLOYED_HOST}/ops/transfers/${id}
 }
 

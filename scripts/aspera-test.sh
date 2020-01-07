@@ -168,24 +168,22 @@ function check_access_keys()
 
 function do_central_send()
 {
-    [[ -z "$JSON" ]] && set_json_central_to_deployed
+    set_json_central_to_deployed
     log_info "Posting the following JSON:\n ${JSON}"
 
     id=$(eval $(echo curl -k -H \"Authorization: Basic ${CENTRAL_TOKEN}\" -X POST https://${CENTRAL_HOST}/ops/transfers -d ${JSON}) | jq '.id' | awk -F '"' '{print $2}')
     export TX_ID=$id
-    get_central_transfer_status
     echo "use 'get_central_transfer_status' to get update on status"
     echo "TX_ID=$id"
 }
 
 function do_deployed_send()
 {
-    [[ -z "$JSON" ]] && set_json_deployed_to_central
+    set_json_deployed_to_central
     log_info "Posting the following JSON:\n ${JSON}"
 
     id=$(eval $(echo curl -k -H \"Authorization: Basic ${DEPLOYED_TOKEN}\" -X POST https://${DEPLOYED_HOST}/ops/transfers -d ${JSON}) | jq '.id' | awk -F '"' '{print $2}')
     export TX_ID=$id
-    get_deployed_transfer_status
     echo "use 'get_deployed_transfer_status' to get update on status"
     echo "TX_ID=$id"
 }

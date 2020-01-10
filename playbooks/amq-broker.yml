@@ -34,7 +34,8 @@
         ar_osc_amqbroker_ns:              "{{ ar_osc_amqbroker_instance | app_namespace(deployment_phase) }}"
         ar_osc_amqbroker_name:            "{{ ar_osc_amqbroker_instance | app_common_name }}"
         ar_osc_amqbroker_config_dest:     "{{ generated_config_path }}/{{ ar_osc_amqbroker_instance | app_common_name }}"
-        ar_osc_amqbroker_k8s_template:    "{{ amqbroker_template }}"
+        ar_osc_amqbroker_k8s_template:    "{{ amqbroker_template | default('amq-broker-72-basic.yml') }}"
+        ar_osc_amqbroker_xml_template:    "{{ amqbroker_xml_template | default('amq7-broker-basic.xml.j2') }}"
         ar_osc_amqbroker_admin_username:  "{{ secrets[ar_osc_amqbroker_instance | app_common_name ].amq_admin_username }}"
         ar_osc_amqbroker_admin_password:  "{{ secrets[ar_osc_amqbroker_instance | app_common_name ].amq_admin_password }}"
         ar_osc_amqbroker_user_roles:      [{ name: "amqsystemuser", role: "user"   },

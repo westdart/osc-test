@@ -26,6 +26,10 @@ alias LOG_EXIT='log_debug "Exiting $FUNCNAME"'
 
 CWD=`pwd`
 
+LOGGER_CLR_RED='\033[1;31m'
+LOGGER_CLR_NC='\033[0m' # No Color
+
+
 function scriptDir() {
     if [[ "$0" == "-bash" || "$0" == "-sh" ]]
     then
@@ -120,6 +124,16 @@ X_getPreamble() {
     echo "$preamble"
 }
 
+X_getFormatStart() {
+    local level=$1
+    [[ "${level}" == "FAILED" ]] && echo "${LOGGER_CLR_RED}"
+}
+
+X_getFormatEnd() {
+    local level=$1
+    [[ "${level}" == "FAILED" ]] && echo "${LOGGER_CLR_NC}"
+}
+
 X_log() {
     local level=$1
     shift
@@ -129,7 +143,7 @@ X_log() {
         shift
     fi
 
-    println $stream "$(X_getPreamble $level)$@"
+    println $stream "$(X_getFormatStart $level)$(X_getPreamble $level)$@$(X_getFormatEnd $level)"
 }
 
 ##############################################################################
@@ -287,6 +301,18 @@ log_error(){
 
 ##############################################################################
 # Description:
+# Log an fail message to standard out.
+# arg1: The message to log
+# Return: 0.
+##############################################################################
+log_fail(){
+    if [ ${LOG_ERROR} -le ${LOG_LEVEL} ];then
+        X_log "FAILED" "${@}"
+    fi
+}
+
+##############################################################################
+# Description:
 # Log a message irrespective of level to standard out.
 # arg1: The message to log
 # Return: 0.
@@ -392,7 +418,8 @@ echoStdErr() {
         echo "" 1>&2
         LOG_LINE_FEED_REQUIRED=false
     fi
-    echo -e $option "$params" 1>&2;
+#    echo -e $option "$params" 1>&2;
+    printf "${params}\n" 1>&2;
 }
 
 printFile() {

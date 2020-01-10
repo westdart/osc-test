@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Helper for building the amq broker and interconnect applications
+# Helper for building the amq broker, interconnect and aspera applications
 #
 
 ADDITONAL_ARGS_PATTERN='+(-t|--target|-i|--instances|-p|--passphrase|-x|--extra-vars|--tags|--skip-tags)'

@@ -101,6 +101,7 @@ export CENTRAL_TOKEN=$(echo -n "MjdiCentral:${CENTRAL_ROOT_PATH}" | base64)
 export DEPLOYED_TOKEN=$(echo -n "MjdiDeployed:${DEPLOYED_ROOT_PATH}" | base64)
 
 export ASPERA_USER=aspera
+# New value for when Docker builds are done : export ASPERA_PASSWORD=swEeLayVNNQHeImUDTHBRvoEt
 export ASPERA_PASSWORD=GFQDprRXGwGkPNeIbdadpoHaz
 
 function central_login()
@@ -516,20 +517,24 @@ function do_test()
     filename=$(basename $(echo "${result}" | awk -F ':' '{print $2}'))
     content=$(echo "${result}" | awk -F ':' '{print $3}')
 
-    log_info "${test}: Transaction ID: $id"
-    log_info "${test}: filename: $filename"
-    log_info "${test}: content: $content"
+    log_info "${name}: Transaction ID: $id"
+    log_info "${name}: filename: $filename"
+    log_info "${name}: content: $content"
 
+    [[ -z "$id" ]] && { log_error "Failed to even transact with server"; return 1; }
     export TX_ID=$id
     wait_status
 
     json=$(${status} ${id} | tail -n +5)
-    log_debug "$json"
-    local tx_filename=$(basename $(echo "${json}" | jq '.start_spec.source_paths[0]' | sed 's/"//g'))
-    log_info "${test}: tx_filename: $tx_filename"
+    log_debug "Status JSON: $json"
+    local tx_filepath=$(echo "${json}" | jq '.start_spec.source_paths[0]' | sed 's/"//g')
+    log_info "${name}: tx_filepath: $tx_filepath"
+
+    local tx_filename=$(basename $tx_filepath)
+    log_info "${name}: tx_filename: $tx_filename"
 
     local tx_content=$(${pull} ${filename})
-    log_info "${test}: tx_content: $tx_content"
+    log_info "${name}: tx_content: $tx_content"
 
     log_info "Use ${status} to obtain updates on transaction status"
     [[ "$filename" != "$tx_filename" ]] && log_fail "File names not the same: $filename != $tx_filename"
@@ -542,6 +547,6 @@ function run_tests()
 {
     for ((i = 0; i < ${#TESTS[@]}; i++))
     do
-        do_test ${TESTS[$i]}
+        do_test ${TESTS[$i]} || return 1
     done
 }

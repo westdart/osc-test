@@ -1,0 +1,6 @@
+---
+- name: Generate ssh key for Aspera (Ansible version >= 2.8)
+  openssh_keypair:
+    path: /tmp/aspera_id_ssh_rsa
+    size: 2048
+    type: rsa

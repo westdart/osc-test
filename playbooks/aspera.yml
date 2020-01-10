@@ -19,12 +19,14 @@
         name: ar_osc_aspera
         tasks_from: "{{ tasks }}"
       vars:
-        ar_osc_aspera_ns:               "{{ ar_osc_aspera_instance | app_namespace(deployment_phase) }}"
-        ar_osc_aspera_name:             "{{ ar_osc_aspera_instance | app_common_name }}"
-        ar_osc_aspera_config_dest:      "{{ generated_config_path }}/{{ ar_osc_aspera_instance | app_common_name }}"
-        ar_osc_aspera_k8s_template:     "{{ aspera_template }}"
-        ar_osc_aspera_docker_registry:  "{{ docker_registry }}"
-        ar_osc_aspera_package_base_url: "{{ package_repository }}"
+        ar_osc_aspera_ns:                        "{{ ar_osc_aspera_instance | app_namespace(deployment_phase) }}"
+        ar_osc_aspera_name:                      "{{ ar_osc_aspera_instance | app_common_name }}"
+        ar_osc_aspera_config_dest:               "{{ generated_config_path }}/{{ ar_osc_aspera_instance | app_common_name }}"
+        ar_osc_aspera_k8s_template:              "{{ aspera_template }}"
+        ar_osc_aspera_docker_registry:           "{{ docker_registry }}"
+        ar_osc_aspera_package_base_url:          "{{ package_repository }}"
+        ar_osc_aspera_docker_registry_dest_path: "{{ ar_osc_aspera_instance.aspera_image_ns | default(aspera_image_ns) }}"
+        ar_osc_aspera_node_selector:             "{{ ar_osc_aspera_instance.node_selector | default(None) }}"
       when: "ar_osc_aspera_instance.incomingAddressList | length > 0"
       with_items:
         - "{{ app_target_instances }}"

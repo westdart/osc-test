@@ -39,3 +39,9 @@ curl https://raw.githubusercontent.com/jboss-container-images/amq-interconnect-1
 curl https://raw.githubusercontent.com/jboss-container-images/amq-interconnect-1-openshift-image/amq-interconnect-1.3/templates/amq-interconnect-1-tls-auth.yaml | oc create -f -
 curl https://raw.githubusercontent.com/jboss-container-images/amq-interconnect-1-openshift-image/amq-interconnect-1.3/templates/amq-interconnect-1-sasldb-auth.yaml | oc create -f -
 
+# AMQ Broker 7.4
+DOCKER_REGISTRY_HOST=$(oc get route -n default | grep "^docker-registry" | awk '{print $2}')
+docker pull registry.redhat.io/amq7/amq-broker:7.4 || exit 1
+docker tag registry.redhat.io/amq7/amq-broker:7.4 ${DOCKER_REGISTRY_HOST}/openshift/amq-broker-74
+docker login -p $(oc whoami -t) -u $(oc whoami) ${DOCKER_REGISTRY_HOST}
+docker push ${DOCKER_REGISTRY_HOST}/openshift/amq-broker-74

@@ -19,13 +19,12 @@
 #
 # Data:
 # TESTS : Bash array conforming to rows of:
-#         <test-name> <dest-prep-function> <test-function> <status-function> <pull-function>
+#         <test-name> <instigator> <responder> <direction>
 #         Where:
 #           test-name: Name of test - single string
-#           dest-prep-function: Function used to prepare the destination
-#           test-function: The function used to do the actual test (including setting up initial state at src)
-#           status-function: Function used to obtain the status of a transfer
-#           pull-function: Function used to pull content from the destination for verification
+#           instigator: Name of the system instigating the transfer (CENTRAL, DEPLOYED or LOCAL_DEPLOYED)
+#           responder: Name of the system responding to the transfer (CENTRAL, DEPLOYED or LOCAL_DEPLOYED)
+#           direction: Direction of the transfer (send or receive)
 #
 # Functions:
 #   central_login()                : Login to the Central Cluster console
@@ -33,55 +32,33 @@
 #   os_logout()                    : Logout of whichever console that is logged in
 #   setup_central_env()
 #   setup_deployed_env()
-#
 #   prepare_file()                 : Create a file on the src to send (i.e. into the 'out' dir)
-#   prepare_dest()                 : Generic function to clear out an 'in' folder on the destination
-#   prepare_central_dest()         : Clear out the Central dest system (i.e. remove everything in the 'in' folder)
-#   prepare_deployed_dest()        : Clear out the Deployed dest system (i.e. remove everything in the 'in' folder)
-#   prepare_local_dest()           : Clear out the Deployed dest system (i.e. remove everything in the 'in' folder)
-#
-#   send()                         : Generic function to send a file from src to dest
-#   do_central_send()              : Instigate sending a file from Central to Deployed
-#   do_central_send_local()        : Instigate sending a file from Central to a Deployed in same cluster
-#   do_deployed_send()             : Instigate sending a file from Deployed to Central
-#   do_local_send()                : Instigate sending a file from a Deployed in the same cluster to Central
-#
-#   get_transfer_status()          : Generic function to get the transfer status of a transaction
-#   get_central_transfer_status()  : Get the status of a central file transfer
-#   get_deployed_transfer_status() : Get the status of a deployed file transfer
-#   get_local_deployed_transfer_status()
-#                                  : Get the status of a deployed file transfer from within same cluster as Central
-#
-#   pull_content()                 : Generic function to obtain file content of a transferred file
-#   pull_content_central()         : Obtain file content of a transferred file to Central
-#   pull_content_deployed()        : Obtain file content of a transferred file to Deployed
-#   pull_content_local()           : Obtain file content of a transferred file to Deployed co-located with Central
-#
-#   get_json()                     : Generic function to create a json payload
-#   get_json_central_to_deployed() : Create a json payload for sending a file to Deployed from Central
-#   get_json_central_to_deployed_using_docker_net()
-#                                  : Create a json payload for sending a file to Deployed from Central in same cluster
-#   get_json_deployed_to_central() : Create a json payload for sending a file to Central from Deployed
-#   get_json_deployed_to_central_using_docker_net()
-#                                  : Create a json payload for sending a file to Central from Deployed in same cluster
-#
+#   prepare_test()                 : Prepare the test, e.g. clear out an 'in' folder on the destination
+#   pull_content()                 : Obtain file content of a transferred file
+#   get_json()                     : Create a json payload
+#   send()                         : Send a file from src to dest
+#   get_transfer_status()          : Get the transfer status of a transaction
+#   wait_status()                  : Wait for affirmative transfer status of a transaction
 #   execute_test()                 : Execute a test
 #   do_test()                      : Wrapper for test execution and verification
 #   run_tests()                    : Loop over all tests and execute
 #
 
-source "$(dirname ${BASH_SOURCE[0]})/logger.sh"
+source "$(dirname ${BASH_SOURCE[0]})/wrapper.sh"
 
 TESTS=(
-    "aspera_test_central_send       prepare_deployed_dest do_central_send       get_central_transfer_status        pull_content_deployed"
-    "aspera_test_deployed_send      prepare_central_dest  do_deployed_send      get_deployed_transfer_status       pull_content_central"
-    "aspera_test_central_send_local prepare_local_dest    do_central_send_local get_central_transfer_status        pull_content_local"
-    "aspera_test_local_send         prepare_central_dest  do_local_send         get_local_deployed_transfer_status pull_content_central"
+#   NAME                INSTIGATOR     RESPONDER      DIRECTION
+    "central_send       CENTRAL        DEPLOYED       send"
+    "deployed_send      DEPLOYED       CENTRAL        send"
+    "central_send_local CENTRAL        LOCAL_DEPLOYED send"
+    "local_send         LOCAL_DEPLOYED CENTRAL        send"
 )
 
 shopt -s expand_aliases
 RED='\033[1;31m'
 NC='\033[0m' # No Color
+
+JQ="$(cd $(dirname ${BASH_SOURCE[0]})/../bin; pwd)/jq"
 
 export CENTRAL_CONSOLE_URL="https://$(grep t1.master /etc/hosts | awk '{print $NF}'):8443"
 export DEPLOYED_CONSOLE_URL="https://$(grep t2.master /etc/hosts | awk '{print $NF}'):8443"
@@ -103,6 +80,9 @@ export DEPLOYED_TOKEN=$(echo -n "MjdiDeployed:${DEPLOYED_ROOT_PATH}" | base64)
 export ASPERA_USER=aspera
 # New value for when Docker builds are done : export ASPERA_PASSWORD=swEeLayVNNQHeImUDTHBRvoEt
 export ASPERA_PASSWORD=GFQDprRXGwGkPNeIbdadpoHaz
+
+export SSH_PORT=30001
+export FASP_PORT=30002
 
 function central_login()
 {
@@ -127,13 +107,15 @@ function setup_central_env()
     export CENTRAL_HOST=$(oc get route -n ${CENTRAL_NS} | grep '\-aspera-api' | awk '{print $2}')
     export CENTRAL_DEPLOYED_FILE=centralToDeployedFile.txt
     export ASPERA_CENTRAL_POD=$(oc get pods -n ${CENTRAL_NS} | grep "aspera.*Running" | awk '{print $1}')
+    export ASPERA_CENTRAL_IP=$(oc get pods -n ${CENTRAL_NS} -o wide | grep 'aspera.*Running' | awk '{print $6}')
     echo "touch /desbs/stg/out/${CENTRAL_DEPLOYED_FILE}" | oc rsh -n ${CENTRAL_NS} ${ASPERA_CENTRAL_POD}
-    export CENTRAL_SSH_PORT=30001
-    export CENTRAL_FASP_PORT=30002
+    export CENTRAL_SSH_PORT=${SSH_PORT}
+    export CENTRAL_FASP_PORT=${FASP_PORT}
     export CENTRAL_COMPUTE_NODE=$(oc get nodes -l "node-role.kubernetes.io/compute=true" | tail -n1 | awk '{print $1}')
 
     export LOCAL_DEPLOYED_HOST=$(oc get route -n ${LOCAL_DEPLOYED_NS} | grep '\-aspera-api' | awk '{print $2}')
     export ASPERA_LOCAL_DEPLOYED_POD=$(oc get pods -n ${LOCAL_DEPLOYED_NS} | grep "aspera.*Running" | awk '{print $1}')
+    export ASPERA_LOCAL_DEPLOYED_IP=$(oc get pods -n ${LOCAL_DEPLOYED_NS} -o wide | grep 'aspera.*Running' | awk '{print $6}')
     export LOCAL_CENTRAL_FILE=localDeployedToCentralFile.txt
 }
 
@@ -144,8 +126,8 @@ function setup_deployed_env()
     export DEPLOYED_CENTRAL_FILE=deployedToCentralFile.txt
     export ASPERA_DEPLOYED_POD=$(oc get pods -n ${DEPLOYED_NS} | grep "aspera.*Running" | awk '{print $1}')
     echo "touch /mjdi/local/GFT/out/${DEPLOYED_CENTRAL_FILE}" | oc rsh -n ${DEPLOYED_NS} ${ASPERA_DEPLOYED_POD}
-    export DEPLOYED_SSH_PORT=30001
-    export DEPLOYED_FASP_PORT=30002
+    export DEPLOYED_SSH_PORT=${SSH_PORT}
+    export DEPLOYED_FASP_PORT=${FASP_PORT}
     export DEPLOYED_COMPUTE_NODE=$(oc get nodes -l "node-role.kubernetes.io/compute=true" | tail -n1 | awk '{print $1}')
 }
 
@@ -166,69 +148,6 @@ function basic_tests()
     printf "\n"
 }
 
-function get_json()
-{
-    [[ $# != 6 ]] && { log_error "Require 6 args: src_token ($1), dest_machine ($2), dest_token ($3), file ($4), ssh_port ($5) and fasp_port ($6) in that order."; return 1; }
-
-    local src_token=${1}
-    local dest_machine=${2}
-    local dest_token=${3}
-    local file=$(basename ${4})
-    local ssh_port=${5}
-    local fasp_port=${6}
-
-    echo "'"$(printf '{"direction":"send","remote_host":"%s","remote_user":"%s","remote_password":"%s","token":"Basic %s","fasp_port":%s,"ssh_port":%s,"paths":[{"source":"/out/%s","destination":"/in/%s"}]}' \
- ${dest_machine} ${ASPERA_USER} ${ASPERA_PASSWORD} ${dest_token} ${fasp_port} ${ssh_port} ${file} ${file})"'"
-}
-
-function get_json_central_to_deployed_using_docker_net()
-{
-    local filename=$1
-    [[ -z "${filename}" ]] && filename=${CENTRAL_DEPLOYED_FILE}
-    get_json ${CENTRAL_TOKEN} \
-             $(oc get pods -n ${LOCAL_DEPLOYED_NS} -o wide | grep 'aspera.*Running' | awk '{print $6}') \
-             ${DEPLOYED_TOKEN} \
-             ${filename} \
-             30001 \
-             30002
-}
-
-function get_json_central_to_deployed()
-{
-    local filename=$1
-    [[ -z "${filename}" ]] && filename=${CENTRAL_DEPLOYED_FILE}
-    get_json ${CENTRAL_TOKEN} \
-             ${DEPLOYED_COMPUTE_NODE} \
-             ${DEPLOYED_TOKEN} \
-             ${filename} \
-             ${DEPLOYED_SSH_PORT} \
-             ${DEPLOYED_FASP_PORT}
-}
-
-function get_json_deployed_to_central()
-{
-    local filename=$1
-    [[ -z "${filename}" ]] && filename=${DEPLOYED_CENTRAL_FILE}
-    get_json ${DEPLOYED_TOKEN} \
-             ${CENTRAL_COMPUTE_NODE} \
-             ${CENTRAL_TOKEN} \
-             ${filename} \
-             ${CENTRAL_SSH_PORT} \
-             ${CENTRAL_FASP_PORT}
-}
-
-function get_json_deployed_to_central_using_docker_net()
-{
-    local filename=$1
-    [[ -z "${filename}" ]] && filename=${LOCAL_CENTRAL_FILE}
-    get_json ${DEPLOYED_TOKEN} \
-             $(oc get pods -n ${CENTRAL_NS} -o wide | grep 'aspera.*Running' | awk '{print $6}') \
-             ${CENTRAL_TOKEN} \
-             ${filename} \
-             30001 \
-             30002
-}
-
 function test_curl()
 {
     cmd=$@
@@ -247,15 +166,54 @@ function check_access_keys()
     fi
 }
 
+function getTestFileName()
+{
+    local name=$1
+    echo "/out/${name}.file"
+}
+
+function getResultFileName()
+{
+    local name=$1
+    echo "/in/${name}.file"
+}
+
 function prepare_file()
 {
     LOG_ENTRY
-    local filename=$1
-    local namespace=$2
-    local pod=$3
-    local content=$4
+    local name=$1
+    local instigator=$2
+    local responder=$3
+    local direction=$4
+    local content=$5
     [[ -z $content ]] && content=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 16 ; echo '')
+    local root_path=
+    local namespace=
+    local pod=
 
+    local src=
+    local dest=
+
+    if [[ ${direction} == "send" ]]
+    then
+        src=${instigator}
+    elif [[ ${direction} == "receive" ]]
+    then
+        src=${responder}
+    else
+        log_error "Only 'send' or 'receive' supported"
+        return 1
+    fi
+
+    oc_login "${src}" || { return 1; }
+
+    root_path=$(getRootPath ${src})
+    namespace=$(getNamespace ${src})
+    pod=$(getPod ${src})
+
+    local filename="${root_path}$(getTestFileName ${name})"
+
+    log_info "Preparing file for transmission: ${filename} ${namespace} ${pod}"
     echo "echo '$content' > ${filename}" | oc rsh -n ${namespace} ${pod}
     [[ $? != 0 ]] && { log_error "Failed to place file in pod: ${namespace}/${pod}"; return 1; }
     echo "$content"
@@ -277,127 +235,128 @@ function prepare_dest()
     LOG_EXIT
 }
 
-function prepare_central_dest()
+function prepare_test()
 {
-    LOG_ENTRY
-    setup_central_env
-    prepare_dest "${CENTRAL_ROOT_PATH}" ${CENTRAL_NS} ${ASPERA_CENTRAL_POD}
-    LOG_EXIT
-}
+    local name=$1
+    local instigator=$2
+    local responder=$3
+    local direction=$4
 
-function prepare_deployed_dest()
-{
-    LOG_ENTRY
-    setup_deployed_env
-    prepare_dest "${DEPLOYED_ROOT_PATH}" ${DEPLOYED_NS} ${ASPERA_DEPLOYED_POD}
-    LOG_EXIT
-}
+    local dest=
 
-function prepare_local_dest()
-{
-    LOG_ENTRY
-    setup_central_env
-    prepare_dest "${DEPLOYED_ROOT_PATH}" ${LOCAL_DEPLOYED_NS} ${ASPERA_LOCAL_DEPLOYED_POD}
-    LOG_EXIT
+    if [[ ${direction} == "send" ]]
+    then
+        dest=${responder}
+    elif [[ ${direction} == "receive" ]]
+    then
+        dest=${instigator}
+    else
+        log_error "Only 'send' or 'receive' supported"
+        return 1
+    fi
+
+    local root_path=$(getRootPath ${dest})
+    local namespace=$(getNamespace ${dest})
+    local asperapod=$(getPod ${dest})
+
+    oc_login "${dest}" || { return 1; }
+    prepare_dest "${root_path}" "${namespace}" "${asperapod}"
 }
 
 function pull_content()
 {
     LOG_ENTRY
-    local filename=$1
-    local namespace=$2
-    local pod=$3
+    local name=$1
+    local instigator=$2
+    local responder=$3
+    local direction=$4
 
-    echo "cat ${filename}" | oc rsh -n ${namespace} ${pod}
+    local filename=$(getResultFileName $name)
+    local dest=
+
+    if [[ ${direction} == "send" ]]
+    then
+        dest=${responder}
+    elif [[ ${direction} == "receive" ]]
+    then
+        dest=${instigator}
+    else
+        log_error "Only 'send' or 'receive' supported (${name})"
+        return 1
+    fi
+
+    local root_path=$(getRootPath ${dest})
+    local namespace=$(getNamespace ${dest})
+    local pod=$(getPod ${dest})
+
+    log_info "oc_login ${dest} and echo \"cat ${root_path}/${filename}\" | oc rsh -n ${namespace} ${pod}"
+    oc_login ${dest}
+    echo "cat ${root_path}/${filename}" | oc rsh -n ${namespace} ${pod}
     LOG_EXIT
 }
 
-function pull_content_central()
+function get_json()
 {
-    LOG_ENTRY
-    setup_central_env
-    log_info "pull_content ${CENTRAL_ROOT_PATH}/in/$(basename $1) ${CENTRAL_NS} ${ASPERA_CENTRAL_POD}"
-    pull_content "${CENTRAL_ROOT_PATH}/in/$(basename $1)" ${CENTRAL_NS} ${ASPERA_CENTRAL_POD}
-    LOG_EXIT
-}
+    [[ $# -lt 6 ]] && { log_error "Require at least 6 args: src_token ($1), dest_machine ($2), dest_token ($3), file ($4), ssh_port ($5) and fasp_port ($6) [optional: direction (send|receive)] in that order."; return 1; }
 
-function pull_content_deployed()
-{
-    LOG_ENTRY
-    setup_deployed_env
-    pull_content "${DEPLOYED_ROOT_PATH}/in/$(basename $1)" ${DEPLOYED_NS} ${ASPERA_DEPLOYED_POD}
-    LOG_EXIT
-}
+    local src_token=${1}
+    local dest_machine=${2}
+    local dest_token=${3}
+    local file=$(basename ${4})
+    local ssh_port=${5}
+    local fasp_port=${6}
+    local direction='send'
 
-function pull_content_local()
-{
-    LOG_ENTRY
-    setup_central_env
-    pull_content "${DEPLOYED_ROOT_PATH}/in/$(basename $1)" ${LOCAL_DEPLOYED_NS} ${ASPERA_LOCAL_DEPLOYED_POD}
-    LOG_EXIT
+    [[ $# -gt 6 ]] && direction=${7}
+
+    case "${direction}" in
+      send)
+        source_file="/out/${file}"
+        dest_file="/in/${file}"
+        ;;
+      receive)
+        source_file="/out/${file}"
+        dest_file="/in/${file}"
+        ;;
+      *)
+        log_error "Direction not supported: ${direction}"
+        return 1
+    esac
+
+    echo "'"$(printf '{"direction":"%s","remote_host":"%s","remote_user":"%s","remote_password":"%s","token":"Basic %s","fasp_port":%s,"ssh_port":%s,"paths":[{"source":"%s","destination":"%s"}]}' \
+ ${direction} ${dest_machine} ${ASPERA_USER} ${ASPERA_PASSWORD} ${dest_token} ${fasp_port} ${ssh_port} ${source_file} ${dest_file})"'"
 }
 
 function send()
 {
     LOG_ENTRY
-    local jsonf=$1
-    local host=$2
-    local token=$3
-    local filename=$4
-    local id=
-    local json=
+    local name=$1
+    local instigator=$2
+    local responder=$3
+    local direction=$4
+    local filename=$5
+    local host=
+    local token=
 
-    json=$(${jsonf} ${filename}) || { log_error "Failed to set JSON payload for transfer using $jsonf $filename"; return 1; }
+    host=$(getHost ${instigator}) || { log_error "Could not get host to send to (${name})"; return 1; }
+    token=$(getToken ${instigator}) || { log_error "Could not get token to use in send (${name})"; return 1; }
+
+    local id=
+    local json=$(get_json ${token} \
+                          $(getDestAddress ${responder} ${instigator}) \
+                          $(getToken ${responder}) \
+                          ${filename} \
+                          ${SSH_PORT} \
+                          ${FASP_PORT} \
+                          ${direction}) || \
+                { log_error "Failed to set JSON payload for transfer for ${instigator}/${responder} $filename (${direction})"; return 1; }
+
     log_info "Posting to ${host} the following JSON payload:\n ${json}"
 
-    id=$(eval $(echo curl -k -H \"Authorization: Basic ${token}\" -X POST https://${host}/ops/transfers -d ${json}) 2>/dev/null | jq '.id' | awk -F '"' '{print $2}') \
+    id=$(eval $(echo curl -k -H \"Authorization: Basic ${token}\" -X POST https://${host}/ops/transfers -d ${json}) 2>/dev/null | ${JQ} '.id' | awk -F '"' '{print $2}') \
       || { log_error "Failed to post json to 'https://${host}/ops/transfers' with token '${token}' "; return 1; }
 
     export TX_ID=$id
-    echo "$id"
-    LOG_EXIT
-}
-
-function do_central_send_local()
-{
-    LOG_ENTRY
-    local filename=$1
-    local id=
-    id=$(send "get_json_central_to_deployed_using_docker_net" ${CENTRAL_HOST} ${CENTRAL_TOKEN} ${filename}) \
-      || { log_error "Failed to send from Central to Deployed using docker net"; return 1; }
-    echo "$id"
-    LOG_EXIT
-}
-
-function do_central_send()
-{
-    LOG_ENTRY
-    local filename=$1
-    local id=
-    id=$(send "get_json_central_to_deployed" ${CENTRAL_HOST} ${CENTRAL_TOKEN} ${filename}) \
-      || { log_error "Failed to send from Central to Deployed"; return 1; }
-    echo "$id"
-    LOG_EXIT
-}
-
-function do_deployed_send()
-{
-    LOG_ENTRY
-    local filename=$1
-    local id=
-    id=$(send "get_json_deployed_to_central" ${DEPLOYED_HOST} ${DEPLOYED_TOKEN} ${filename}) \
-      || { log_error "Failed to send from Central to Deployed"; return 1; }
-    echo "$id"
-    LOG_EXIT
-}
-
-function do_local_send()
-{
-    LOG_ENTRY
-    local filename=$1
-    local id=
-    id=$(send "get_json_deployed_to_central_using_docker_net" ${LOCAL_DEPLOYED_HOST} ${DEPLOYED_TOKEN} ${filename}) \
-      || { log_error "Failed to send from Central to Deployed"; return 1; }
     echo "$id"
     LOG_EXIT
 }
@@ -414,79 +373,42 @@ function get_transfer_status()
     LOG_EXIT
 }
 
-function get_central_transfer_status()
-{
-    LOG_ENTRY
-    get_transfer_status ${CENTRAL_HOST} ${CENTRAL_TOKEN} $1
-    LOG_EXIT
-}
-
-function get_deployed_transfer_status()
-{
-    LOG_ENTRY
-    get_transfer_status ${DEPLOYED_HOST} ${DEPLOYED_TOKEN} $1
-    LOG_EXIT
-}
-
-function get_local_deployed_transfer_status()
-{
-    LOG_ENTRY
-    get_transfer_status ${LOCAL_DEPLOYED_HOST} ${DEPLOYED_TOKEN} $1
-    LOG_EXIT
-}
-
 function execute_test()
 {
     LOG_ENTRY
     local name=$1
-    local test=$2
+    local instigator=$2
+    local responder=$3
+    local direction=$4
     local file_content=
     local id=
     local root_path=
     local namespace=
     local pod=
 
-    if echo "$name" | grep -iq "aspera_test_central"
-    then
-        root_path="${CENTRAL_ROOT_PATH}"
-        namespace="${CENTRAL_NS}"
-        pod="${ASPERA_CENTRAL_POD}"
-        central_login
-    elif echo "$name" | grep -iq "aspera_test_local"
-    then
-        root_path="${DEPLOYED_ROOT_PATH}"
-        namespace="${LOCAL_DEPLOYED_NS}"
-        pod="${ASPERA_LOCAL_DEPLOYED_POD}"
-        central_login
-    elif echo "$name" | grep -iq "aspera_test_deployed"
-    then
-        root_path="${DEPLOYED_ROOT_PATH}"
-        namespace="${DEPLOYED_NS}"
-        pod="${ASPERA_DEPLOYED_POD}"
-        deployed_login
-    else
-        log_error "Not able to match a known config - test name should start: aspera_test_central or aspera_test_local or aspera_test_deployed"
-    fi
-
-    local filename="${root_path}/out/${name}.file"
-    log_info "Preparing file for transmission: ${filename} ${namespace} ${pod}"
-    file_content=$(prepare_file "${filename}" ${namespace} ${pod}) \
+    local filename=$(getTestFileName ${name})
+    file_content=$(prepare_file ${name} ${instigator} ${responder} ${direction}) \
       || { log_error "Failed to put file for $name"; return 1; }
-    id=$(${test} ${filename}) || { log_error "Failed to send file for $name"; return 1; }
+
+    id=$(send ${name} ${instigator} ${responder} ${direction} ${filename}) \
+      || { log_error "Failed to send from Central to Deployed using docker net"; return 1; }
+
     echo "$id:$filename:$file_content"
     LOG_EXIT
 }
 
 function wait_status()
 {
-    local status=$1
-    local id=$2
+    local host=$1
+    local token=$2
+    local id=$3
+
     local source_path=
     local wait_time=0
 
-    until [[ ! -z ${source_path} || ${wait_time} -eq 4 ]]
+    until [[ (! -z ${source_path} && ${source_path} != 'null') || ${wait_time} -eq 4 ]]
     do
-      source_path=$(${status} ${id} | tail -n +5 | jq '.start_spec.source_paths[0]' | sed 's/"//g')
+      source_path=$(get_transfer_status "${host}" "${token}" "${id}" | tail -n +5 | ${JQ} '.start_spec.source_paths[0]' | sed 's/"//g')
       sleep ${wait_time}
       let wait_time=wait_time+1
     done
@@ -495,23 +417,177 @@ function wait_status()
     return 0
 }
 
+function getRootPath()
+{
+    case ${1} in
+      CENTRAL)
+        echo ${CENTRAL_ROOT_PATH}
+        ;;
+      DEPLOYED)
+        echo ${DEPLOYED_ROOT_PATH}
+        ;;
+      LOCAL_DEPLOYED)
+        echo ${DEPLOYED_ROOT_PATH}
+        ;;
+      *)
+        return 1
+        ;;
+    esac
+}
+
+function getNamespace()
+{
+    case ${1} in
+      CENTRAL)
+        echo ${CENTRAL_NS}
+        ;;
+      DEPLOYED)
+        echo ${DEPLOYED_NS}
+        ;;
+      LOCAL_DEPLOYED)
+        echo ${LOCAL_DEPLOYED_NS}
+        ;;
+      *)
+        return 1
+        ;;
+    esac
+}
+
+function getPod()
+{
+    case ${1} in
+      CENTRAL)
+        echo ${ASPERA_CENTRAL_POD}
+        ;;
+      DEPLOYED)
+        echo ${ASPERA_DEPLOYED_POD}
+        ;;
+      LOCAL_DEPLOYED)
+        echo ${ASPERA_LOCAL_DEPLOYED_POD}
+        ;;
+      *)
+        return 1
+        ;;
+    esac
+}
+
+function getToken()
+{
+    case ${1} in
+      CENTRAL)
+        echo ${CENTRAL_TOKEN}
+        ;;
+      DEPLOYED)
+        echo ${DEPLOYED_TOKEN}
+        ;;
+      LOCAL_DEPLOYED)
+        echo ${DEPLOYED_TOKEN}
+        ;;
+      *)
+        return 1
+        ;;
+    esac
+}
+
+function getDestAddress()
+{
+    local responder=$1
+    local instigator=$2
+
+    if [[ ${responder} != "LOCAL_DEPLOYED" && ${instigator} != "LOCAL_DEPLOYED" ]]
+    then
+        case ${responder} in
+          CENTRAL)
+            echo ${CENTRAL_COMPUTE_NODE}
+            ;;
+          DEPLOYED)
+            echo ${DEPLOYED_COMPUTE_NODE}
+            ;;
+          LOCAL_DEPLOYED)
+            echo ${CENTRAL_COMPUTE_NODE}
+            ;;
+          *)
+            return 1
+            ;;
+        esac
+    else
+        case ${responder} in
+          CENTRAL)
+            echo ${ASPERA_CENTRAL_IP}
+            ;;
+          DEPLOYED)
+            echo ${DEPLOYED_COMPUTE_NODE} # This probably won't work - i.e. LOCAL_DEPLOYED to DEPLOYED
+            ;;
+          LOCAL_DEPLOYED)
+            echo ${ASPERA_LOCAL_DEPLOYED_IP}
+            ;;
+          *)
+            return 1
+            ;;
+        esac
+    fi
+}
+
+function getHost()
+{
+    case ${1} in
+      CENTRAL)
+        echo ${CENTRAL_HOST}
+        ;;
+      DEPLOYED)
+        echo ${DEPLOYED_HOST}
+        ;;
+      LOCAL_DEPLOYED)
+        echo ${LOCAL_DEPLOYED_HOST}
+        ;;
+      *)
+        return 1
+        ;;
+    esac
+}
+
+function oc_login()
+{
+    local src=$1
+    if [[ "${src}" == "CENTRAL" ]]
+    then
+        central_login
+    elif [[ "${src}" == "LOCAL_DEPLOYED" ]]
+    then
+        central_login
+    elif [[ "${src}" == "DEPLOYED" ]]
+    then
+        deployed_login
+    else
+        log_error "Not able to match a known config - instigator must be CENTRAL, DEPLOYED or LOCAL_DEPLOYED"
+        return 1
+    fi
+
+}
+
 function do_test()
 {
     LOG_ENTRY
     local name=$1
-    local dest_setup=$2
-    local test=$3
-    local status=$4
-    local pull=$5
+    local instigator=$2
+    local responder=$3
+    local direction=$4
     local result=
     local id=
     local content=
     local json=
+    local host=
+    local token=
+    local dest_root_path=
+
+    host=$(getHost ${instigator}) || { log_error "Could not get host to send to (${name})"; return 1; }
+    token=$(getToken ${instigator}) || { log_error "Could not get token to use in send (${name})"; return 1; }
 
     log_always "TEST: $name"
-    ${dest_setup} || { log_error "Failed to prepare dest ($dest_setup)"; return 1; }
+    prepare_test "${name}" "${instigator}" "${responder}" "${direction}" || \
+      { log_error "Failed to prepare test (${name})"; return 1; }
 
-    result=$(execute_test ${name} ${test}) || { log_error "Failed to execute test ($test)"; return 1; }
+    result=$(execute_test ${name} ${instigator} ${responder} ${direction}) || { log_error "Failed to execute test (${name})"; return 1; }
 
     id=$(echo "${result}" | awk -F ':' '{print $1}')
     filename=$(basename $(echo "${result}" | awk -F ':' '{print $2}'))
@@ -523,20 +599,20 @@ function do_test()
 
     [[ -z "$id" ]] && { log_error "Failed to even transact with server"; return 1; }
     export TX_ID=$id
-    wait_status
+    wait_status ${host} ${token} ${id}
 
-    json=$(${status} ${id} | tail -n +5)
+    json=$(get_transfer_status ${host} ${token} ${id} | tail -n +5)
     log_debug "Status JSON: $json"
-    local tx_filepath=$(echo "${json}" | jq '.start_spec.source_paths[0]' | sed 's/"//g')
+    local tx_filepath=$(echo "${json}" | ${JQ} '.start_spec.source_paths[0]' | sed 's/"//g')
     log_info "${name}: tx_filepath: $tx_filepath"
 
     local tx_filename=$(basename $tx_filepath)
     log_info "${name}: tx_filename: $tx_filename"
 
-    local tx_content=$(${pull} ${filename})
+    local tx_content=$(pull_content ${name} ${instigator} ${responder} ${direction})
     log_info "${name}: tx_content: $tx_content"
 
-    log_info "Use ${status} to obtain updates on transaction status"
+    log_info "Use 'get_transfer_status ${host} ${token} ${id}' to obtain updates on transaction status"
     [[ "$filename" != "$tx_filename" ]] && log_fail "File names not the same: $filename != $tx_filename"
     [[ "$content" != "$tx_content" ]]   && log_fail "File content not the same: $content != $tx_content"
     os_logout
@@ -550,3 +626,16 @@ function run_tests()
         do_test ${TESTS[$i]} || return 1
     done
 }
+
+function wrapper_initialise()
+{
+    setup_central_env
+    setup_deployed_env
+}
+
+function executeScript()
+{
+    run_tests
+}
+
+wrapper

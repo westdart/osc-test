@@ -326,6 +326,19 @@ log_always(){
 
 ##############################################################################
 # Description:
+# Log a message irrespective of level to standard out and do not put in a preamble.
+# arg1: The message to log
+# Return: 0.
+##############################################################################
+log_raw(){
+    local level=${LOG_ALWAYS}
+    if [ ${level} -le ${LOG_LEVEL} ];then
+        X_log "-" "${@}"
+    fi
+}
+
+##############################################################################
+# Description:
 # Log a message at a custom level to standard out.
 # arg1: The level at which to log it
 # arg2: The message to log

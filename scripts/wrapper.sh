@@ -23,7 +23,7 @@
 source "$SOURCE_PATH/logger.sh"
 source "$SOURCE_PATH/common.sh"
 
-ADDITONAL_ARGS_EXTRACT_SCRIPT=extractArgs
+ADDITONAL_ARGS_EXTRACT_SCRIPT=extractArgsextractArgs
 INITIALISE_SCRIPT=wrapper_initialise
 FINALISE_SCRIPT=wrapper_finalise
 
@@ -283,6 +283,11 @@ function enablePrompt()
 function disablePrompt()
 {
   PROMPT_ENABLED=1
+}
+
+function extractArgs()
+{
+    echo "" > /dev/null
 }
 
 function wrapper()

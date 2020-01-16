@@ -23,7 +23,7 @@
 source "$SOURCE_PATH/logger.sh"
 source "$SOURCE_PATH/common.sh"
 
-ADDITONAL_ARGS_EXTRACT_SCRIPT=extractArgsextractArgs
+ADDITONAL_ARGS_EXTRACT_SCRIPT=extractArgs
 INITIALISE_SCRIPT=wrapper_initialise
 FINALISE_SCRIPT=wrapper_finalise
 

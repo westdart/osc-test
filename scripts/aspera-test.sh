@@ -60,6 +60,8 @@ NC='\033[0m' # No Color
 
 JQ="$(cd $(dirname ${BASH_SOURCE[0]})/../bin; pwd)/jq"
 
+# Note: '?_COMPUTE_NODE' variables can be defined for 'CENTRAL', 'LOCAL_DEPLOYED' and 'DEPLOYED'. If not specified 'getComputeNode' obtains one from Openshift dynamically
+
 export CENTRAL_HOST=$(grep t1.master /etc/hosts | awk '{print $NF}')
 export DEPLOYED_HOST=$(grep t2.master /etc/hosts | awk '{print $NF}')
 export CENTRAL_CONSOLE_URL="https://${CENTRAL_HOST}:8443"
@@ -344,11 +346,11 @@ function send()
 
     local id=
     local json=$(get_json ${token} \
-                          $(getDestAddress ${responder} ${instigator}) \
+                          $(getDestAddress ${instigator} ${responder}) \
                           $(getToken ${responder}) \
                           ${filename} \
-                          $(getSshPort ${responder}) \
-                          $(getFaspPort ${responder}) \
+                          $(getSshPort ${instigator} ${responder}) \
+                          $(getFaspPort ${instigator} ${responder}) \
                           ${direction}) || \
                 { log_error "Failed to set JSON payload for transfer for ${instigator}/${responder} $filename (${direction})"; return 1; }
 
@@ -475,14 +477,16 @@ function getToken()
 function getComputeNode()
 {
     local target=$1
+    local cnode=$(eval echo '${'${target}'_COMPUTE_NODE}')
+    [[ ! -z "$cnode" ]] && { echo ${cnode}; return 0; }
     oc_login ${target}
     oc get nodes -l "node-role.kubernetes.io/compute=true" | tail -n1 | awk '{print $1}'
 }
 
 function getDestAddress()
 {
-    local responder=$1
-    local instigator=$2
+    local instigator=$1
+    local responder=$2
 
     if [[ ${responder} == "LOCAL_DEPLOYED" || ${instigator} == "LOCAL_DEPLOYED" ]]
     then
@@ -512,38 +516,28 @@ function getPod()
 
 function getSshPort()
 {
-    case ${1} in
-      CENTRAL)
-        echo ${SSH_NODE_PORT}
-        ;;
-      DEPLOYED)
-        echo ${SSH_NODE_PORT}
-        ;;
-      LOCAL_DEPLOYED)
+    local instigator=$1
+    local responder=$2
+
+    if [[ ${responder} == "LOCAL_DEPLOYED" || ${instigator} == "LOCAL_DEPLOYED" ]]
+    then
         echo ${SSH_INTERNAL_PORT}
-        ;;
-      *)
-        return 1
-        ;;
-    esac
+    else
+        echo ${SSH_NODE_PORT}
+    fi
 }
 
 function getFaspPort()
 {
-    case ${1} in
-      CENTRAL)
-        echo ${FASP_NODE_PORT}
-        ;;
-      DEPLOYED)
-        echo ${FASP_NODE_PORT}
-        ;;
-      LOCAL_DEPLOYED)
+    local instigator=$1
+    local responder=$2
+
+    if [[ ${responder} == "LOCAL_DEPLOYED" || ${instigator} == "LOCAL_DEPLOYED" ]]
+    then
         echo ${FASP_INTERNAL_PORT}
-        ;;
-      *)
-        return 1
-        ;;
-    esac
+    else
+        echo ${FASP_NODE_PORT}
+    fi
 }
 
 function oc_login()
@@ -579,21 +573,21 @@ function print_details()
     log_info "instigator root path=$(getRootPath ${instigator})"
     log_info "instigator namespace=$(getNamespace ${instigator})"
     log_info "instigator token=$(getToken ${instigator})"
-    log_info "instigator dest addr=$(getDestAddress ${instigator})"
+    log_info "instigator dest addr=$(getDestAddress ${instigator} ${responder})"
     log_info "instigator host=$(getHost ${instigator})"
     log_info "instigator pod ip=$(getPodIPAddress ${instigator})"
     log_info "instigator pod=$(getPod ${instigator})"
-    log_info "instigator ssh port=$(getSshPort ${instigator})"
-    log_info "instigator fasp port=$(getFaspPort ${instigator})"
+    log_info "instigator ssh port=$(getSshPort ${instigator} ${responder})"
+    log_info "instigator fasp port=$(getFaspPort ${instigator} ${responder})"
     log_info "responder root path=$(getRootPath ${responder})"
     log_info "responder namespace=$(getNamespace ${responder})"
     log_info "responder token=$(getToken ${responder})"
-    log_info "responder dest addr=$(getDestAddress ${responder})"
+    log_info "responder dest addr=$(getDestAddress ${responder} ${instigator})"
     log_info "responder host=$(getHost ${responder})"
     log_info "responder pod ip=$(getPodIPAddress ${responder})"
     log_info "responder pod=$(getPod ${responder})"
-    log_info "responder ssh port=$(getSshPort ${responder})"
-    log_info "responder fasp port=$(getFaspPort ${responder})"
+    log_info "responder ssh port=$(getSshPort ${responder} ${instigator})"
+    log_info "responder fasp port=$(getFaspPort ${responder} ${instigator})"
 }
 
 function do_test()

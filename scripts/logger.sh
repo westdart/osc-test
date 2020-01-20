@@ -27,6 +27,7 @@ alias LOG_EXIT='log_debug "Exiting $FUNCNAME"'
 CWD=`pwd`
 
 LOGGER_CLR_RED='\033[1;31m'
+LOGGER_CLR_GREEN='\033[1;32m'
 LOGGER_CLR_NC='\033[0m' # No Color
 
 
@@ -127,11 +128,13 @@ X_getPreamble() {
 X_getFormatStart() {
     local level=$1
     [[ "${level}" == "FAILED" ]] && echo "${LOGGER_CLR_RED}"
+    [[ "${level}" == "PASSED" ]] && echo "${LOGGER_CLR_GREEN}"
 }
 
 X_getFormatEnd() {
     local level=$1
     [[ "${level}" == "FAILED" ]] && echo "${LOGGER_CLR_NC}"
+    [[ "${level}" == "PASSED" ]] && echo "${LOGGER_CLR_NC}"
 }
 
 X_log() {
@@ -308,6 +311,18 @@ log_error(){
 log_fail(){
     if [ ${LOG_ERROR} -le ${LOG_LEVEL} ];then
         X_log "FAILED" "${@}"
+    fi
+}
+
+##############################################################################
+# Description:
+# Log an passed message to standard out.
+# arg1: The message to log
+# Return: 0.
+##############################################################################
+log_pass(){
+    if [ ${LOG_ERROR} -le ${LOG_LEVEL} ];then
+        X_log "PASSED" "${@}"
     fi
 }
 

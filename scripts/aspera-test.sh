@@ -60,8 +60,10 @@ NC='\033[0m' # No Color
 
 JQ="$(cd $(dirname ${BASH_SOURCE[0]})/../bin; pwd)/jq"
 
-export CENTRAL_CONSOLE_URL="https://$(grep t1.master /etc/hosts | awk '{print $NF}'):8443"
-export DEPLOYED_CONSOLE_URL="https://$(grep t2.master /etc/hosts | awk '{print $NF}'):8443"
+export CENTRAL_HOST=$(grep t1.master /etc/hosts | awk '{print $NF}')
+export DEPLOYED_HOST=$(grep t2.master /etc/hosts | awk '{print $NF}')
+export CENTRAL_CONSOLE_URL="https://${CENTRAL_HOST}:8443"
+export DEPLOYED_CONSOLE_URL="https://${DEPLOYED_HOST}:8443"
 export CENTRAL_CONSOLE_USER=admin
 export CENTRAL_CONSOLE_PASSWORD=password
 export DEPLOYED_CONSOLE_USER=admin
@@ -79,20 +81,31 @@ export DEPLOYED_TOKEN=$(echo -n "MjdiDeployed:${DEPLOYED_ROOT_PATH}" | base64)
 
 export ASPERA_USER=aspera
 # New value for when Docker builds are done : export ASPERA_PASSWORD=swEeLayVNNQHeImUDTHBRvoEt
-export ASPERA_PASSWORD=GFQDprRXGwGkPNeIbdadpoHaz
+export ASPERA_PASSWORD=swEeLayVNNQHeImUDTHBRvoEt
 
-export SSH_PORT=30001
-export FASP_PORT=30002
+export SSH_NODE_PORT=30001
+export FASP_NODE_PORT=30002
+export SSH_INTERNAL_PORT=30001
+export FASP_INTERNAL_PORT=30002
+
+function current_host()
+{
+    oc whoami --show-server | awk -F "/" '{print $NF}' | awk -F ":" '{print $1}'
+}
 
 function central_login()
 {
-    log_info "Logging into ${CENTRAL_CONSOLE_URL} as ${CENTRAL_CONSOLE_USER} (may require a password ...)"
+    [[ "$(current_host)" == "$CENTRAL_HOST" ]] && return 0;
+    os_logout
+    log_debug "Logging into Central: ${CENTRAL_CONSOLE_URL} as ${CENTRAL_CONSOLE_USER} (may require a password ...)"
     oc login ${CENTRAL_CONSOLE_URL} -u ${CENTRAL_CONSOLE_USER} -p ${CENTRAL_CONSOLE_PASSWORD} &> /dev/null
 }
 
 function deployed_login()
 {
-    log_info "Logging into ${DEPLOYED_CONSOLE_URL} as ${DEPLOYED_CONSOLE_USER} (may require a password ...)"
+    [[ "$(current_host)" == "$DEPLOYED_HOST" ]] && return 0;
+    os_logout
+    log_debug "Logging into Deployed: ${DEPLOYED_CONSOLE_URL} as ${DEPLOYED_CONSOLE_USER} (${DEPLOYED_CONSOLE_PASSWORD}) (may require a password ...)"
     oc login ${DEPLOYED_CONSOLE_URL} -u ${DEPLOYED_CONSOLE_USER} -p ${DEPLOYED_CONSOLE_PASSWORD} &> /dev/null
 }
 
@@ -101,51 +114,30 @@ function os_logout()
     oc logout &> /dev/null
 }
 
-function setup_central_env()
+function basic_test()
 {
-    central_login
-    export CENTRAL_HOST=$(oc get route -n ${CENTRAL_NS} | grep '\-aspera-api' | awk '{print $2}')
-    export CENTRAL_DEPLOYED_FILE=centralToDeployedFile.txt
-    export ASPERA_CENTRAL_POD=$(oc get pods -n ${CENTRAL_NS} | grep "aspera.*Running" | awk '{print $1}')
-    export ASPERA_CENTRAL_IP=$(oc get pods -n ${CENTRAL_NS} -o wide | grep 'aspera.*Running' | awk '{print $6}')
-    echo "touch /desbs/stg/out/${CENTRAL_DEPLOYED_FILE}" | oc rsh -n ${CENTRAL_NS} ${ASPERA_CENTRAL_POD}
-    export CENTRAL_SSH_PORT=${SSH_PORT}
-    export CENTRAL_FASP_PORT=${FASP_PORT}
-    export CENTRAL_COMPUTE_NODE=$(oc get nodes -l "node-role.kubernetes.io/compute=true" | tail -n1 | awk '{print $1}')
+    local target=$1
+    # Basic tests
+    oc_login ${target}
+    echo "/opt/aspera/bin/asnodeadmin -l" | oc rsh -n $(getNamespace ${target}) $(getPod ${target})
 
-    export LOCAL_DEPLOYED_HOST=$(oc get route -n ${LOCAL_DEPLOYED_NS} | grep '\-aspera-api' | awk '{print $2}')
-    export ASPERA_LOCAL_DEPLOYED_POD=$(oc get pods -n ${LOCAL_DEPLOYED_NS} | grep "aspera.*Running" | awk '{print $1}')
-    export ASPERA_LOCAL_DEPLOYED_IP=$(oc get pods -n ${LOCAL_DEPLOYED_NS} -o wide | grep 'aspera.*Running' | awk '{print $6}')
-    export LOCAL_CENTRAL_FILE=localDeployedToCentralFile.txt
-}
-
-function setup_deployed_env()
-{
-    deployed_login
-    export DEPLOYED_HOST=$(oc get route -n ${DEPLOYED_NS} | grep '\-aspera-api' | awk '{print $2}')
-    export DEPLOYED_CENTRAL_FILE=deployedToCentralFile.txt
-    export ASPERA_DEPLOYED_POD=$(oc get pods -n ${DEPLOYED_NS} | grep "aspera.*Running" | awk '{print $1}')
-    echo "touch /mjdi/local/GFT/out/${DEPLOYED_CENTRAL_FILE}" | oc rsh -n ${DEPLOYED_NS} ${ASPERA_DEPLOYED_POD}
-    export DEPLOYED_SSH_PORT=${SSH_PORT}
-    export DEPLOYED_FASP_PORT=${FASP_PORT}
-    export DEPLOYED_COMPUTE_NODE=$(oc get nodes -l "node-role.kubernetes.io/compute=true" | tail -n1 | awk '{print $1}')
+    # Browse
+    printf "\n${RED}Browse of $(getHost ${target})${NC}\n"
+    curl -ki -H "Authorization: Basic $(getToken ${target})" -d '{"filters":{"basenames":["*File*.txt"],"types":["file","directory"]},"path":"/out","sort":"mtime_a"}' https://$(getHost ${target})/files/browse
+    curl -ki -H "Authorization: Basic $(getToken ${target})" -d '{"filters":{"basenames":["*File*.txt"],"types":["file","directory"]},"path":"/in","sort":"mtime_a"}' https://$(getHost ${target})/files/browse
+    printf "\n"
 }
 
 function basic_tests()
 {
+    targets=$@
     # Basic tests
-    echo "/opt/aspera/bin/asnodeadmin -l" | oc rsh -n ${CENTRAL_NS} ${ASPERA_CENTRAL_POD}
-    echo "/opt/aspera/bin/asnodeadmin -l" | oc rsh -n ${DEPLOYED_NS} ${ASPERA_CENTRAL_POD}
+    [[ $# == 0 ]] && targets="CENTRAL DEPLOYED LOCAL_DEPLOYED"
 
-    # Browse
-    printf "\n${RED}Browse of ${CENTRAL_HOST}${NC}\n"
-    curl -ki -H "Authorization: Basic ${CENTRAL_TOKEN}" -d '{"filters":{"basenames":["*File*.txt"],"types":["file","directory"]},"path":"/out","sort":"mtime_a"}' https://${CENTRAL_HOST}/files/browse
-    printf "\n${RED}Browse of ${DEPLOYED_HOST}${NC}\n"
-    curl -ki -H "Authorization: Basic ${DEPLOYED_TOKEN}" -d '{"filters":{"basenames":["*File*.txt"],"types":["file","directory"]},"path":"/out","sort":"mtime_a"}' https://${DEPLOYED_HOST}/files/browse
-    printf "\n"
-    printf "\n${RED}Browse of ${LOCAL_DEPLOYED_HOST}${NC}\n"
-    curl -ki -H "Authorization: Basic ${DEPLOYED_TOKEN}" -d '{"filters":{"basenames":["*File*.txt"],"types":["file","directory"]},"path":"/out","sort":"mtime_a"}' https://${LOCAL_DEPLOYED_HOST}/files/browse
-    printf "\n"
+    for target in ${targets}
+    do
+        basic_test ${target}
+    done
 }
 
 function test_curl()
@@ -155,15 +147,26 @@ function test_curl()
     [[ "$ret" == "200" ]] || { log_info "failed: curl -ki $cmd"; return 1; }
 }
 
+function check_access_key()
+{
+    local target=$1
+    if test_curl "-u asperaNodeUser:Password123 -X GET https://$(getHost ${target})/access_keys"
+    then
+        log_info "Successfully checked curl of access keys at https://$(getHost ${target})/access_keys"
+    else
+        log_info "Failed to check curl of access keys at https://$(getHost ${target})/access_keys"
+    fi
+}
 
 function check_access_keys()
 {
-    if test_curl "-u asperaNodeUser:Password123 -X GET https://${CENTRAL_HOST}/access_keys"
-    then
-        log_info "Successfully checked curl of access keys at https://${CENTRAL_HOST}/access_keys"
-    else
-        log_info "Failed to check curl of access keys at https://${CENTRAL_HOST}/access_keys"
-    fi
+    targets=$@
+    [[ $# == 0 ]] && targets="CENTRAL DEPLOYED LOCAL_DEPLOYED"
+
+    for target in ${targets}
+    do
+        check_access_key ${target}
+    done
 }
 
 function getTestFileName()
@@ -204,8 +207,6 @@ function prepare_file()
         log_error "Only 'send' or 'receive' supported"
         return 1
     fi
-
-    oc_login "${src}" || { return 1; }
 
     root_path=$(getRootPath ${src})
     namespace=$(getNamespace ${src})
@@ -289,9 +290,9 @@ function pull_content()
     local namespace=$(getNamespace ${dest})
     local pod=$(getPod ${dest})
 
-    log_info "oc_login ${dest} and echo \"cat ${root_path}/${filename}\" | oc rsh -n ${namespace} ${pod}"
     oc_login ${dest}
-    echo "cat ${root_path}/${filename}" | oc rsh -n ${namespace} ${pod}
+    log_info "Getting file: ${root_path}${filename} at ${namespace} ${pod} on $(current_host)"
+    echo "cat ${root_path}${filename}" | oc rsh -n ${namespace} ${pod}
     LOG_EXIT
 }
 
@@ -346,12 +347,12 @@ function send()
                           $(getDestAddress ${responder} ${instigator}) \
                           $(getToken ${responder}) \
                           ${filename} \
-                          ${SSH_PORT} \
-                          ${FASP_PORT} \
+                          $(getSshPort ${responder}) \
+                          $(getFaspPort ${responder}) \
                           ${direction}) || \
                 { log_error "Failed to set JSON payload for transfer for ${instigator}/${responder} $filename (${direction})"; return 1; }
 
-    log_info "Posting to ${host} the following JSON payload:\n ${json}"
+    log_info "Sending message: Posting to ${host} (${instigator} token: ${token}) the following JSON payload:\n ${json}"
 
     id=$(eval $(echo curl -k -H \"Authorization: Basic ${token}\" -X POST https://${host}/ops/transfers -d ${json}) 2>/dev/null | ${JQ} '.id' | awk -F '"' '{print $2}') \
       || { log_error "Failed to post json to 'https://${host}/ops/transfers' with token '${token}' "; return 1; }
@@ -406,7 +407,7 @@ function wait_status()
     local source_path=
     local wait_time=0
 
-    until [[ (! -z ${source_path} && ${source_path} != 'null') || ${wait_time} -eq 4 ]]
+    until [[ (! -z ${source_path} && ${source_path} != 'null') || ${wait_time} -eq 5 ]]
     do
       source_path=$(get_transfer_status "${host}" "${token}" "${id}" | tail -n +5 | ${JQ} '.start_spec.source_paths[0]' | sed 's/"//g')
       sleep ${wait_time}
@@ -453,24 +454,6 @@ function getNamespace()
     esac
 }
 
-function getPod()
-{
-    case ${1} in
-      CENTRAL)
-        echo ${ASPERA_CENTRAL_POD}
-        ;;
-      DEPLOYED)
-        echo ${ASPERA_DEPLOYED_POD}
-        ;;
-      LOCAL_DEPLOYED)
-        echo ${ASPERA_LOCAL_DEPLOYED_POD}
-        ;;
-      *)
-        return 1
-        ;;
-    esac
-}
-
 function getToken()
 {
     case ${1} in
@@ -489,56 +472,73 @@ function getToken()
     esac
 }
 
+function getComputeNode()
+{
+    local target=$1
+    oc_login ${target}
+    oc get nodes -l "node-role.kubernetes.io/compute=true" | tail -n1 | awk '{print $1}'
+}
+
 function getDestAddress()
 {
     local responder=$1
     local instigator=$2
 
-    if [[ ${responder} != "LOCAL_DEPLOYED" && ${instigator} != "LOCAL_DEPLOYED" ]]
+    if [[ ${responder} == "LOCAL_DEPLOYED" || ${instigator} == "LOCAL_DEPLOYED" ]]
     then
-        case ${responder} in
-          CENTRAL)
-            echo ${CENTRAL_COMPUTE_NODE}
-            ;;
-          DEPLOYED)
-            echo ${DEPLOYED_COMPUTE_NODE}
-            ;;
-          LOCAL_DEPLOYED)
-            echo ${CENTRAL_COMPUTE_NODE}
-            ;;
-          *)
-            return 1
-            ;;
-        esac
+        getPodIPAddress ${responder}
     else
-        case ${responder} in
-          CENTRAL)
-            echo ${ASPERA_CENTRAL_IP}
-            ;;
-          DEPLOYED)
-            echo ${DEPLOYED_COMPUTE_NODE} # This probably won't work - i.e. LOCAL_DEPLOYED to DEPLOYED
-            ;;
-          LOCAL_DEPLOYED)
-            echo ${ASPERA_LOCAL_DEPLOYED_IP}
-            ;;
-          *)
-            return 1
-            ;;
-        esac
+        getComputeNode ${responder}
     fi
 }
 
 function getHost()
 {
+    oc_login ${1}
+    oc get route -n $(getNamespace $1) | grep '\-aspera-api' | awk '{print $2}'
+}
+
+function getPodIPAddress()
+{
+    oc_login ${1}
+    oc get pods -n $(getNamespace $1) -o wide | grep 'aspera.*Running' | awk '{print $6}'
+}
+
+function getPod()
+{
+    oc_login ${1}
+    oc get pods -n $(getNamespace $1) | grep "aspera.*Running" | awk '{print $1}'
+}
+
+function getSshPort()
+{
     case ${1} in
       CENTRAL)
-        echo ${CENTRAL_HOST}
+        echo ${SSH_NODE_PORT}
         ;;
       DEPLOYED)
-        echo ${DEPLOYED_HOST}
+        echo ${SSH_NODE_PORT}
         ;;
       LOCAL_DEPLOYED)
-        echo ${LOCAL_DEPLOYED_HOST}
+        echo ${SSH_INTERNAL_PORT}
+        ;;
+      *)
+        return 1
+        ;;
+    esac
+}
+
+function getFaspPort()
+{
+    case ${1} in
+      CENTRAL)
+        echo ${FASP_NODE_PORT}
+        ;;
+      DEPLOYED)
+        echo ${FASP_NODE_PORT}
+        ;;
+      LOCAL_DEPLOYED)
+        echo ${FASP_INTERNAL_PORT}
         ;;
       *)
         return 1
@@ -565,6 +565,37 @@ function oc_login()
 
 }
 
+function print_details()
+{
+    local name=$1
+    local instigator=$2
+    local responder=$3
+    local direction=$4
+
+    log_info "TEST DETAILS: ${name}"
+    log_info "instigator=${instigator}"
+    log_info "responder=${responder}"
+    log_info "direction=${direction}"
+    log_info "instigator root path=$(getRootPath ${instigator})"
+    log_info "instigator namespace=$(getNamespace ${instigator})"
+    log_info "instigator token=$(getToken ${instigator})"
+    log_info "instigator dest addr=$(getDestAddress ${instigator})"
+    log_info "instigator host=$(getHost ${instigator})"
+    log_info "instigator pod ip=$(getPodIPAddress ${instigator})"
+    log_info "instigator pod=$(getPod ${instigator})"
+    log_info "instigator ssh port=$(getSshPort ${instigator})"
+    log_info "instigator fasp port=$(getFaspPort ${instigator})"
+    log_info "responder root path=$(getRootPath ${responder})"
+    log_info "responder namespace=$(getNamespace ${responder})"
+    log_info "responder token=$(getToken ${responder})"
+    log_info "responder dest addr=$(getDestAddress ${responder})"
+    log_info "responder host=$(getHost ${responder})"
+    log_info "responder pod ip=$(getPodIPAddress ${responder})"
+    log_info "responder pod=$(getPod ${responder})"
+    log_info "responder ssh port=$(getSshPort ${responder})"
+    log_info "responder fasp port=$(getFaspPort ${responder})"
+}
+
 function do_test()
 {
     LOG_ENTRY
@@ -579,6 +610,7 @@ function do_test()
     local host=
     local token=
     local dest_root_path=
+    local failed=false
 
     host=$(getHost ${instigator}) || { log_error "Could not get host to send to (${name})"; return 1; }
     token=$(getToken ${instigator}) || { log_error "Could not get token to use in send (${name})"; return 1; }
@@ -613,9 +645,10 @@ function do_test()
     log_info "${name}: tx_content: $tx_content"
 
     log_info "Use 'get_transfer_status ${host} ${token} ${id}' to obtain updates on transaction status"
-    [[ "$filename" != "$tx_filename" ]] && log_fail "File names not the same: $filename != $tx_filename"
-    [[ "$content" != "$tx_content" ]]   && log_fail "File content not the same: $content != $tx_content"
-    os_logout
+    [[ "$filename" != "$tx_filename" ]] && { failed=true; log_fail "${name}: File names not the same: $filename != $tx_filename"; }
+    [[ "$content" != "$tx_content" ]]   && { failed=true; log_fail "${name}: File content not the same: $content != $tx_content"; }
+
+    ! ${failed} && log_pass "${name}"
     LOG_EXIT
 }
 
@@ -623,14 +656,8 @@ function run_tests()
 {
     for ((i = 0; i < ${#TESTS[@]}; i++))
     do
-        do_test ${TESTS[$i]} || return 1
+        do_test ${TESTS[$i]} || { print_details ${TESTS[$i]}; return 1; }
     done
-}
-
-function wrapper_initialise()
-{
-    setup_central_env
-    setup_deployed_env
 }
 
 function executeScript()

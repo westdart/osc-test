@@ -217,10 +217,26 @@ function prepare_file()
     local filename="${root_path}$(getTestFileName ${name})"
 
     log_info "Preparing file for transmission: ${filename} ${namespace} ${pod}"
-    echo "echo '$content' > ${filename}" | oc rsh -n ${namespace} ${pod}
+    local createfile=(
+      echo "echo '$content' > ${filename}"
+    )
+    local rshtopod=(
+      oc rsh -n ${namespace} ${pod}
+    )
+
+    execute_cmd createfile[@] rshtopod[@]
     [[ $? != 0 ]] && { log_error "Failed to place file in pod: ${namespace}/${pod}"; return 1; }
     echo "$content"
     LOG_EXIT
+}
+
+function execute_cmd()
+{
+    declare -a cmdarg=("${!1}")
+    declare -a pipearg=("${!2}")
+
+    log_info "cm: ${cmdarg[@]} | ${pipearg[@]}"
+    "${cmdarg[@]}" | "${pipearg[@]}"
 }
 
 function prepare_dest()
@@ -233,7 +249,14 @@ function prepare_dest()
 
     log_info "Preparing Dest: ${namespace} ${pod} ${basedir}"
 
-    echo "rm -f ${basedir}/in/*" | oc rsh -n ${namespace} ${pod}
+    local rminall=(
+      echo "rm -f ${basedir}/in/*"
+    )
+    local rshtopod=(
+      oc rsh -n ${namespace} ${pod}
+    )
+
+    execute_cmd rminall[@] rshtopod[@]
     [[ $? != 0 ]] && { log_error "Failed to prepare pod: ${namespace}/${pod}"; return 1; }
     LOG_EXIT
 }
@@ -294,7 +317,15 @@ function pull_content()
 
     oc_login ${dest}
     log_info "Getting file: ${root_path}${filename} at ${namespace} ${pod} on $(current_host)"
-    echo "cat ${root_path}${filename}" | oc rsh -n ${namespace} ${pod}
+
+    local catfile=(
+      echo "cat ${root_path}${filename}"
+    )
+    local rshtopod=(
+      oc rsh -n ${namespace} ${pod}
+    )
+
+    execute_cmd catfile[@] rshtopod[@]
     LOG_EXIT
 }
 

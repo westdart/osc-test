@@ -6,14 +6,34 @@ ADDITONAL_ARGS_PATTERN='+(-t|--target|-i|--instances|-p|--passphrase|-x|--extra-
 ADDITONAL_SWITCHES_PATTERN='+(-s|--suppresscheckin)'
 
 source "$(dirname ${BASH_SOURCE[0]})/wrapper.sh"
+source "$(dirname ${BASH_SOURCE[0]})/common-properties.sh"
+
+SECRET_FILE=~/.mjdisecrets
 
 TAGS=
 SKIP_TAGS=
 CHECKIN=true
 EXTRA_VARS=
+CREDENTIAL_VAULT=
+
+function getMjdiVaultPassphrase() {
+    getSecret 'mjdi_passphrase'
+}
+
+function getOpenshiftCredentialVaultPassphrase() {
+    getSecret 'openshift_credentials_passphrase'
+}
 
 function extraArgsClause() {
-    [[ ! -z "$EXTRA_VARS" ]] && echo "--extra-vars '${EXTRA_VARS}'"
+    local result=""
+    if [[ ! -z "$EXTRA_VARS" ]]
+    then
+        for entry in $(echo "$EXTRA_VARS" | sed 's/,/ /g')
+        do
+            result="${result} --extra-vars '${entry}'"
+        done
+    fi
+    echo "$result"
 }
 
 function getTargetsAsJsonArray()
@@ -83,13 +103,24 @@ function executeCommand()
     local cmd="$1"
     local trap_clause=""
     local tag_clause=""
-    [[ ! -z "${PASSWORD_FILE}" ]] && trap_clause="trap 'rm -f ${PASSWORD_FILE}' SIGINT ;"
+    local result=
+    [[ ! -z "${APP_CREDENTIAL_FILE}" ]] && trap_clause="trap 'rm -f ${APP_CREDENTIAL_FILE} ${OPENSHIFT_CREDENTIAL_FILE}' SIGINT ;"
     [[ ! -z "${TAGS}" ]] && tag_clause=" --tags ${TAGS}"
     [[ ! -z "${SKIP_TAGS}" ]] && skip_tag_clause=" --skip-tags ${SKIP_TAGS}"
 
     log_info "Command: ${cmd}${tag_clause}"
 
-    eval "echo \"${trap_clause}${cmd}${tag_clause}${skip_tag_clause}\" | /bin/bash"
+    # Create the temp passphrase files
+    echo "$(getMjdiVaultPassphrase)" > "${APP_CREDENTIAL_FILE}" || { log_error "Failed to store app credential"; return 1; }
+    echo "$(getOpenshiftCredentialVaultPassphrase)" > "${OPENSHIFT_CREDENTIAL_FILE}" || { log_error "Failed to store openshift credential"; return 1; }
+
+    local command=$cmd
+    [[ -e ${CREDENTIAL_VAULT} ]] && command="$cmd --extra-vars \"openshift_credentials=${CREDENTIAL_VAULT}\""
+
+    eval "echo \"${trap_clause}${command}${tag_clause}${skip_tag_clause}\" | /bin/bash"
+    result=$?
+    rm -f ${APP_CREDENTIAL_FILE} ${OPENSHIFT_CREDENTIAL_FILE}
+    return ${result}
 }
 
 function setup_tls()
@@ -103,7 +134,7 @@ function setup_tls()
 function generate_secrets()
 {
     local cmd="ansible-playbook $(playbookDir)/generate-secrets.yml \
-      --extra-vars \"app_vault_passphrase=${PASSPHRASE}\" \
+      --extra-vars \"app_vault_passphrase=$(getMjdiVaultPassphrase)\" \
       --extra-vars \"app_instances_file=$(getAppDefFile)\" \
       --extra-vars '$(getTargetsAsJsonArray)' $(extraArgsClause)"
     executeCommand "$cmd"
@@ -112,7 +143,7 @@ function generate_secrets()
 function checkin()
 {
     local cmd="ansible-playbook $(playbookDir)/git-checkin.yml \
-      --extra-vars \"app_vault_passphrase=${PASSPHRASE}\" \
+      --extra-vars \"app_vault_passphrase=$(getMjdiVaultPassphrase)\" \
       --extra-vars \"app_instances_file=$(getAppDefFile)\" \
       --extra-vars '$(getTargetsAsJsonArray)' $(extraArgsClause)"
     executeCommand "$cmd"
@@ -123,7 +154,7 @@ function amq_broker()
     local cmd="ansible-playbook $(playbookDir)/amq-broker.yml -i $(getInventoryPath "$(getTargetsAsLowercase)" 'amqbroker') \
       --extra-vars \"target_seed_hosts=$(getTargetSeedHosts)\" \
       --extra-vars \"app_instances_file=$(getAppDefFile)\" \
-      --extra-vars '$(getTargetsAsJsonArray)' --vault-id psp@${PASSWORD_FILE} $(extraArgsClause)"
+      --extra-vars '$(getTargetsAsJsonArray)' --vault-id appcred@${APP_CREDENTIAL_FILE} $(extraArgsClause)"
     executeCommand "$cmd"
 }
 
@@ -132,7 +163,7 @@ function amq_interconnect()
     local cmd="ansible-playbook $(playbookDir)/amq-interconnect.yml -i $(getInventoryPath "$(getTargetsAsLowercase)" 'amqinterconnect') \
       --extra-vars \"target_seed_hosts=$(getTargetSeedHosts)\" \
       --extra-vars \"app_instances_file=$(getAppDefFile)\" \
-      --extra-vars '$(getTargetsAsJsonArray)' --vault-id psp@${PASSWORD_FILE} $(extraArgsClause)"
+      --extra-vars '$(getTargetsAsJsonArray)' --vault-id appcred@${APP_CREDENTIAL_FILE} $(extraArgsClause)"
     executeCommand "$cmd"
 }
 
@@ -141,10 +172,16 @@ function aspera()
     local cmd="ansible-playbook $(playbookDir)/aspera.yml -i $(getInventoryPath "$(getTargetsAsLowercase)" 'aspera') \
       --extra-vars \"target_seed_hosts=$(getTargetSeedHosts)\" \
       --extra-vars \"app_instances_file=$(getAppDefFile)\" \
-      --extra-vars '$(getTargetsAsJsonArray)' --vault-id psp@${PASSWORD_FILE} $(extraArgsClause)"
+      --extra-vars '$(getTargetsAsJsonArray)' --vault-id appcred@${APP_CREDENTIAL_FILE} $(extraArgsClause)"
     executeCommand "$cmd"
 }
 
+function login()
+{
+    local cmd="ansible-playbook $(playbookDir)/openshift-login.yml \
+      --vault-id appcred@${APP_CREDENTIAL_FILE} --vault-id occred@${OPENSHIFT_CREDENTIAL_FILE} $(extraArgsClause)"
+    executeCommand "$cmd"
+}
 
 function executeScript()
 {
@@ -160,6 +197,29 @@ function prepare()
     setup_tls        || { log_error "Failed to setup TLS"; return 1; }
     generate_secrets || { log_error "Failed to generate secrets"; return 1; }
 }
+
+function overwrite()
+{
+    local secret=$1
+    local result=0
+    if haveSecret $secret
+    then
+        log_always "The secret '$secret' already exists. Overwrite? [y/n]"
+        ! confirmed && result=1
+    fi
+    return $result
+}
+
+########################################################################################################################
+# Call this function once to setup the required secrets
+#  i.e. ./build.sh -f setupSecrets
+########################################################################################################################
+function setupSecrets()
+{
+    overwrite "mjdi_passphrase"                   && storeSecret "mjdi_passphrase"
+    overwrite "openshift_credentials_passphrase"  && storeSecret "openshift_credentials_passphrase"
+}
+
 
 function usage()
 {
@@ -187,8 +247,8 @@ function extractArgs()
             setOption "${arg_key}" "INSTANCES" "${optarg}"
             shift # past argument
             ;;
-        -p|--passphrase)
-            setOption "${arg_key}" "PASSPHRASE" "${optarg}"
+        -c|--credential-vault)
+            setOption "${arg_key}" "CREDENTIAL_VAULT" "${optarg}"
             shift # past argument
             ;;
         -s|--suppresscheckin)
@@ -210,18 +270,16 @@ function extractArgs()
       shift # past argument or value
     done
 
+    APP_CREDENTIAL_FILE=".a$$"
+    OPENSHIFT_CREDENTIAL_FILE=".o$$"
+    chmod 600 ${APP_CREDENTIAL_FILE} ${OPENSHIFT_CREDENTIAL_FILE}
+    addTempFiles "${APP_CREDENTIAL_FILE}"
+    addTempFiles "${OPENSHIFT_CREDENTIAL_FILE}"
+
     [[ -z "${TARGET}" ]] && { log_error "Require a comma separated list (-t)"; return 1; }
-
     [[ -z "${INSTANCES}" ]] && { log_error "Require an instances filename (-i)"; return 1; }
-
-    [[ -z "${PASSPHRASE}" ]] && { log_error "Require an passphrase (-p)"; return 1; }
-
-    PASSWORD_FILE=".p$$"
-    echo "${PASSPHRASE}" > "${PASSWORD_FILE}"
-    addTempFiles "${PASSWORD_FILE}"
 
     return 0
 }
-
 
 wrapper

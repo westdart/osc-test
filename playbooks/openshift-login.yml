@@ -4,15 +4,25 @@
 - name: Login to OpenShift
   hosts: localhost
 
+  vars:
+    app_target_instance_names: "{{ targets | default(app_instances | json_query('[*].name')) }}"
+    app_target_instances: "{{ app_instances | select_from_array_of_dicts('name', app_target_instance_names) }}"
+
+  vars_files:
+    - "{{ app_instances_file }}"
+
   tasks:
+    - set_fact:
+        _oc_login_url: "{{ app_target_instances[0]['oc_login_url'] | default(oc_login_url) }}"
+
     - name: "Assert OpenShift Login URL provided"
       assert:
         that:
-          - "oc_login_url is defined"
+          - "_oc_login_url is defined"
 
     - name: Login to OpenShift
       include_role:
         name: ar_osc_common_templates
         tasks_from: login
       vars:
-        ar_osc_common_templates_openshift_login_url: "{{ oc_login_url }}"
+        ar_osc_common_templates_openshift_login_url: "{{ _oc_login_url }}"

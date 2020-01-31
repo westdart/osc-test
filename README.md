@@ -120,3 +120,36 @@ To just invoke the build of Docker images execute:
 
 ## Sample
 A sample vars file is provided in the 'osc_environments' git repository
+
+# Setting up passphrases
+The script operates on an encrypted file to obtain passphrases to the required vaults etc.
+
+To set this up the following functions should be used:
+```
+# export SECRET_PASSPHRASE=$(./scripts/build.sh -f getConfirmedPassword Enter passphrase)
+# ./scripts/build.sh -f setupSecrets
+```
+The first puts the secret used to encrypt the data into the environment
+(without entering it into the command literally and hence into history).
+The second prompts for each of the required secrets in turn and creates
+the secret file (at ~/.secrets) 
+
+# Setting up OC Login credentials
+Ansible vaults are used to store th OpenShift login credentials.
+
+To set up, create an ansible vault (this will contain one or more sets of credentials for OpenShift clusters)
+```
+# ansible-vault create ~/.vaults/openshift-credentials.vault
+# chmod 700 ~/.vaults
+# chmod 600 ~/.vaults/openshift-credentials.vault
+```
+
+The contents should reflect the following:
+```
+---
+openshift_login_credentials:
+  '<the console url - i.e. <protocol>://<host>:<port>>':
+    openshift_user: '<the user>'
+    openshift_password: '<the password>'
+```
+With an entry under 'openshift_login_credentials' for each cluster that needs to be accessed

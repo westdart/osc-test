@@ -179,6 +179,8 @@ function aspera()
 function login()
 {
     local cmd="ansible-playbook $(playbookDir)/openshift-login.yml \
+      --extra-vars '$(getTargetsAsJsonArray)' \
+      --extra-vars \"app_instances_file=$(getAppDefFile)\" \
       --vault-id appcred@${APP_CREDENTIAL_FILE} --vault-id occred@${OPENSHIFT_CREDENTIAL_FILE} $(extraArgsClause)"
     executeCommand "$cmd"
 }
@@ -219,7 +221,6 @@ function setupSecrets()
     overwrite "mjdi_passphrase"                   && storeSecret "mjdi_passphrase"
     overwrite "openshift_credentials_passphrase"  && storeSecret "openshift_credentials_passphrase"
 }
-
 
 function usage()
 {

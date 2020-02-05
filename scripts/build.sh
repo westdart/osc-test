@@ -113,6 +113,7 @@ function executeCommand()
     # Create the temp passphrase files
     echo "$(getMjdiVaultPassphrase)" > "${APP_CREDENTIAL_FILE}" || { log_error "Failed to store app credential"; return 1; }
     echo "$(getOpenshiftCredentialVaultPassphrase)" > "${OPENSHIFT_CREDENTIAL_FILE}" || { log_error "Failed to store openshift credential"; return 1; }
+    chmod 600 ${APP_CREDENTIAL_FILE} ${OPENSHIFT_CREDENTIAL_FILE}
 
     local command=$cmd
     [[ -e ${CREDENTIAL_VAULT} ]] && command="$cmd --extra-vars \"openshift_credentials=${CREDENTIAL_VAULT}\""
@@ -273,7 +274,6 @@ function extractArgs()
 
     APP_CREDENTIAL_FILE=".a$$"
     OPENSHIFT_CREDENTIAL_FILE=".o$$"
-    chmod 600 ${APP_CREDENTIAL_FILE} ${OPENSHIFT_CREDENTIAL_FILE}
     addTempFiles "${APP_CREDENTIAL_FILE}"
     addTempFiles "${OPENSHIFT_CREDENTIAL_FILE}"
 

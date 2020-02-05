@@ -7,87 +7,38 @@
 - name: Obtain Registry Certificate
   hosts: localhost
 
-  vars:
-    registry_local_cert_path: "/tmp/certificate-{{ external_registry.host }}-{{ external_registry.port }}.crt"
+  vars_files:
+    - "{{ openshift_credentials }}"
 
   tasks:
-    - name: Obtain external registry certificates
-      shell: echo -n | openssl s_client -connect {{ external_registry.host }}:{{ external_registry.port }} -servername {{ external_registry.host }} -showcerts 2>/dev/null | sed --quiet '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p'
-      changed_when: false
-      register: certresult
+    - name: Include common role to get certificates
+      include_role:
+        name: ar_osc_common_templates
+        tasks_from: get-cert
+      vars:
+        ar_osc_common_templates_cert_host: "{{ item.split(':')[0] }}"
+        ar_osc_common_templates_cert_port: "{{ item.split(':')[1] | default('443') }}"
+        ar_osc_common_templates_cert_path: "/tmp/certificate-{{ item }}.crt"
+      with_items: "{{ registry_login_credentials | dict2items | map(attribute='key') | list }}"
 
-    - name: Hold server cert locally
-      copy:
-        dest: "{{ registry_local_cert_path }}"
-        content: "{{ certresult.stdout }}"
-
-    # Validate cert
-    - name: Get information on generated certificate
-      openssl_certificate_info:
-        path: "{{ registry_local_cert_path }}"
-      register: certinfo
-
-    - name: Validate registry certificates
-      assert:
-        that:
-          - not certinfo.expired
-          - "certinfo.subject.commonName == '{{ external_registry.host }}' or 'DNS:{{ external_registry.host }}' in certinfo.subject_alt_name"
-        msg: "Certificate must not be expired and must contain the hostname accessed in the subject commonName or subject alternate names"
 
 - name: Place Registry Certificate
   hosts: "{{ target }}"
   become: true
 
   vars:
-    registry_local_cert_path: "/tmp/certificate-{{ external_registry.host }}-{{ external_registry.port }}.crt"
     docker_version_1_13: '1.13' # Earlier versions of docker require extra steps
 
+  vars_files:
+    - "{{ openshift_credentials }}"
+
   tasks:
-    - set_fact:
-        external_registry_ip: "{{ lookup('dig', '{{ external_registry.host }}.')}}"
-
-    - debug: var=external_registry_ip
-
-    - name: Copy cert file to machines
-      copy:
-        src: "{{ registry_local_cert_path }}"
-        dest: "/etc/pki/ca-trust/source/anchors/"
-      notify:
-        - Update CA trust
-        - Restart Docker
-
-    - name: Get info on docker host
-      docker_host_info:
-      register: dockerinfo
-
-    - debug: var=dockerinfo
-      when: dockerinfo.host_info.ServerVersion is version_compare(docker_version_1_13, '<')
-
-    - name: Update Docker Certs - mkdir
-      file:
-        path: "/etc/docker/certs.d/{{ item }}"
-        state: directory
-      with_items:
-        - "{{ external_registry_ip }}"
-        - "{{ external_registry.host }}:{{ external_registry.port }}"
-      when: dockerinfo.host_info.ServerVersion is version_compare(docker_version_1_13, '<')
-
-    - name: Update Docker Certs - copy cert
-      copy:
-        src: "{{ registry_local_cert_path }}"
-        dest: "/etc/docker/certs.d/{{ item }}"
-      with_items:
-        - "{{ external_registry_ip }}"
-        - "{{ external_registry.host }}:{{ external_registry.port }}"
-      when: dockerinfo.host_info.ServerVersion is version_compare(docker_version_1_13, '<')
-      notify:
-        - Restart Docker
-
-  handlers:
-    - name: Update CA trust
-      command: update-ca-trust
-
-    - name: Restart Docker
-      systemd:
-        name: docker.service
-        state: restarted
+    - name: Include common role to get certificates
+      include_role:
+        name: ar_osc_common_templates
+        tasks_from: place-registry-cert
+      vars:
+        ar_osc_common_templates_cert_host: "{{ item.split(':')[0] }}"
+        ar_osc_common_templates_cert_port: "{{ item.split(':')[1] | default('443') }}"
+        ar_osc_common_templates_cert_path: "/tmp/certificate-{{ item }}.crt"
+      with_items: "{{ registry_login_credentials | dict2items | map(attribute='key') | list }}"

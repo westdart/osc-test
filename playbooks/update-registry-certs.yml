@@ -54,7 +54,7 @@
         dest: "/etc/pki/ca-trust/source/anchors/"
       notify:
         - Update CA trust
-        - Retart Docker
+        - Restart Docker
 
     - name: Get info on docker host
       docker_host_info:
@@ -81,13 +81,13 @@
         - "{{ external_registry.host }}:{{ external_registry.port }}"
       when: dockerinfo.host_info.ServerVersion is version_compare(docker_version_1_13, '<')
       notify:
-        - Retart Docker
+        - Restart Docker
 
   handlers:
     - name: Update CA trust
       command: update-ca-trust
 
-    - name: Retart Docker
+    - name: Restart Docker
       systemd:
         name: docker.service
         state: restarted

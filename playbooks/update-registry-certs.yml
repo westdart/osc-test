@@ -10,12 +10,12 @@
   tasks:
     - name: Include common role to get certificates
       include_role:
-        name: ar_osc_common_templates
+        name: ar_os_common
         tasks_from: get-cert
       vars:
-        ar_osc_common_templates_cert_host: "{{ item.split(':')[0] }}"
-        ar_osc_common_templates_cert_port: "{{ item.split(':')[1] | default('443') }}"
-        ar_osc_common_templates_cert_path: "/tmp/certificate-{{ item }}.crt"
+        ar_os_common_cert_host: "{{ item.split(':')[0] }}"
+        ar_os_common_cert_port: "{{ item.split(':')[1] | default('443') }}"
+        ar_os_common_cert_path: "/tmp/certificate-{{ item }}.crt"
       with_items: "{{ registry_login_credentials | dict2items | map(attribute='key') | list }}"
 
 
@@ -29,17 +29,17 @@
   tasks:
     - name: Include common role to get certificates
       include_role:
-        name: ar_osc_common_templates
+        name: ar_os_common
         tasks_from: place-registry-cert
       vars:
-        ar_osc_common_templates_cert_host: "{{ item.split(':')[0] }}"
-        ar_osc_common_templates_cert_port: "{{ item.split(':')[1] | default('443') }}"
-        ar_osc_common_templates_cert_path: "/tmp/certificate-{{ item }}.crt"
+        ar_os_common_cert_host: "{{ item.split(':')[0] }}"
+        ar_os_common_cert_port: "{{ item.split(':')[1] | default('443') }}"
+        ar_os_common_cert_path: "/tmp/certificate-{{ item }}.crt"
       with_items: "{{ registry_login_credentials | dict2items | map(attribute='key') | list }}"
 
     - name: Include common role to update registry list
       include_role:
-        name: ar_osc_common_templates
+        name: ar_os_common
         tasks_from: registry-list
       vars:
-        ar_osc_common_templates_registry_list: "{{ registry_login_credentials | dict2items | map(attribute='key') | list }}"
+        ar_os_common_registry_list: "{{ registry_login_credentials | dict2items | map(attribute='key') | list }}"

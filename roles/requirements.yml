@@ -26,5 +26,5 @@
   version: v1.0
 
 # Get the roles under development
-- src: https://github.com/westdart/ar_osc_common_templates.git
+- src: https://github.com/westdart/ar_os_common.git
   version: v1.3

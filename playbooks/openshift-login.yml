@@ -22,7 +22,7 @@
 
     - name: Login to OpenShift
       include_role:
-        name: ar_osc_common_templates
+        name: ar_os_common
         tasks_from: login
       vars:
-        ar_osc_common_templates_openshift_login_url: "{{ _oc_login_url }}"
+        ar_os_common_openshift_login_url: "{{ _oc_login_url }}"

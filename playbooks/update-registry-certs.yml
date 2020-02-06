@@ -7,9 +7,6 @@
 - name: Obtain Registry Certificate
   hosts: localhost
 
-  vars_files:
-    - "{{ openshift_credentials }}"
-
   tasks:
     - name: Include common role to get certificates
       include_role:
@@ -29,9 +26,6 @@
   vars:
     docker_version_1_13: '1.13' # Earlier versions of docker require extra steps
 
-  vars_files:
-    - "{{ openshift_credentials }}"
-
   tasks:
     - name: Include common role to get certificates
       include_role:
@@ -42,3 +36,10 @@
         ar_osc_common_templates_cert_port: "{{ item.split(':')[1] | default('443') }}"
         ar_osc_common_templates_cert_path: "/tmp/certificate-{{ item }}.crt"
       with_items: "{{ registry_login_credentials | dict2items | map(attribute='key') | list }}"
+
+    - name: Include common role to update registry list
+      include_role:
+        name: ar_osc_common_templates
+        tasks_from: registry-list
+      vars:
+        ar_osc_common_templates_registry_list: "{{ registry_login_credentials | dict2items | map(attribute='key') | list }}"

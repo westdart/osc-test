@@ -116,7 +116,7 @@ function executeCommand()
     chmod 600 ${APP_CREDENTIAL_FILE} ${OPENSHIFT_CREDENTIAL_FILE}
 
     local command=$cmd
-    [[ -e ${CREDENTIAL_VAULT} ]] && command="$cmd --extra-vars \"openshift_credentials=${CREDENTIAL_VAULT}\""
+    [[ -e ${CREDENTIAL_VAULT} ]] && command="$cmd --extra-vars \"@${CREDENTIAL_VAULT}\""
 
     eval "echo \"${trap_clause}${command}${tag_clause}${skip_tag_clause}\" | /bin/bash"
     result=$?

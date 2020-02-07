@@ -135,7 +135,7 @@ The second prompts for each of the required secrets in turn and creates
 the secret file (at ~/.secrets) 
 
 # Setting up OC Login credentials
-Ansible vaults are used to store th OpenShift login credentials.
+Ansible vaults are used to store the OpenShift login credentials.
 
 To set up, create an ansible vault (this will contain one or more sets of credentials for OpenShift clusters)
 ```
@@ -152,4 +152,4 @@ openshift_login_credentials:
     openshift_user: '<the user>'
     openshift_password: '<the password>'
 ```
-With an entry under 'openshift_login_credentials' for each cluster that needs to be accessed
+With an entry under 'openshift_login_credentials' for each cluster that needs to be accessed.

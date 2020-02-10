@@ -11,11 +11,11 @@
 
 # Get the roles under development
 - src: https://github.com/westdart/ar_osc_amqinterconnect.git
-  version: v1.0
+  version: v1.2
 
 # Get the roles under development
 - src: https://github.com/westdart/ar_osc_aspera.git
-  version: v1.3
+  version: v1.4
 
 # Get the roles under development
 - src: https://github.com/westdart/ar_os_scc_binding.git

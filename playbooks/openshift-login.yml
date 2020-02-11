@@ -15,6 +15,8 @@
     - set_fact:
         _oc_login_url: "{{ app_target_instances[0]['oc_login_url'] | default(oc_login_url) }}"
 
+    - include_tasks: ../tasks/load_credential_vault.yml
+
     - name: "Assert OpenShift Login URL provided"
       assert:
         that:

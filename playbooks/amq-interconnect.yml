@@ -20,6 +20,8 @@
     - "{{ amq_secrets_file | default(generated_config_dir + '/mjdi.vault') }}"
 
   tasks:
+    - include_tasks: ../tasks/load_credential_vault.yml
+
     - debug: var=app_target_instance_names
 
     - name: Show targets

@@ -3,7 +3,7 @@
 #
 
 ADDITONAL_ARGS_PATTERN='+(-t|--target|-i|--instances|-p|--passphrase|-x|--extra-vars|--tags|--skip-tags)'
-ADDITONAL_SWITCHES_PATTERN='+(-s|--suppresscheckin)'
+ADDITONAL_SWITCHES_PATTERN='+(-s|--suppresscheckin|--dry-run)'
 
 source "$(dirname ${BASH_SOURCE[0]})/wrapper.sh"
 source "$(dirname ${BASH_SOURCE[0]})/common-properties.sh"
@@ -13,6 +13,7 @@ SECRET_FILE=~/.mjdisecrets
 TAGS=
 SKIP_TAGS=
 CHECKIN=true
+DRY_RUN=false
 EXTRA_VARS=
 CREDENTIAL_VAULT=
 
@@ -108,8 +109,6 @@ function executeCommand()
     [[ ! -z "${TAGS}" ]] && tag_clause=" --tags ${TAGS}"
     [[ ! -z "${SKIP_TAGS}" ]] && skip_tag_clause=" --skip-tags ${SKIP_TAGS}"
 
-    log_info "Command: ${cmd}${tag_clause}"
-
     # Create the temp passphrase files
     echo "$(getMjdiVaultPassphrase)" > "${APP_CREDENTIAL_FILE}" || { log_error "Failed to store app credential"; return 1; }
     echo "$(getOpenshiftCredentialVaultPassphrase)" > "${OPENSHIFT_CREDENTIAL_FILE}" || { log_error "Failed to store openshift credential"; return 1; }
@@ -118,7 +117,13 @@ function executeCommand()
     local command=$cmd
     [[ -e ${CREDENTIAL_VAULT} ]] && command="$cmd --extra-vars \"credential_vault=${CREDENTIAL_VAULT}\""
 
-    eval "echo \"${trap_clause}${command}${tag_clause}${skip_tag_clause}\" | /bin/bash"
+    local _command=$(echo "${command}${tag_clause}${skip_tag_clause}" | tr -s ' ')
+
+    log_info "${_command}"
+    if ! $DRY_RUN
+    then
+        eval "echo \"${trap_clause}${_command}\" | /bin/bash"
+    fi
     result=$?
     rm -f ${APP_CREDENTIAL_FILE} ${OPENSHIFT_CREDENTIAL_FILE}
     return ${result}
@@ -267,6 +272,9 @@ function extractArgs()
         --skip-tags)
             setOption "${arg_key}" "SKIP_TAGS" "${optarg}"
             shift # past argument
+            ;;
+        --dry-run)
+            DRY_RUN=true
             ;;
       esac
       shift # past argument or value

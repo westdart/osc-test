@@ -29,6 +29,7 @@
         ar_osc_aspera_package_base_url:          "{{ ar_osc_aspera_instance.package_repository | default(package_repository) }}"
         ar_osc_aspera_docker_registry_dest_path: "{{ ar_osc_aspera_instance.aspera_image_ns | default(aspera_image_ns) }}"
         ar_osc_aspera_node_selector:             "{{ ar_osc_aspera_instance.node_selector | default(None) }}"
+        ar_osc_aspera_serviceaccounts:           "{{ ar_osc_aspera_instance.aspera_serviceaccounts | default(aspera_serviceaccounts) }}"
       when: "ar_osc_aspera_instance.incomingAddressList | length > 0"
       with_items:
         - "{{ app_target_instances }}"

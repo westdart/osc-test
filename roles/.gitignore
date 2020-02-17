@@ -1,9 +1,12 @@
 openshift-applier
 casl-ansible
+ar_os_common
+ar_os_registry_secret
+ar_os_scc_binding
+ar_os_secret_link
+ar_os_seed
 ar_osc_amqbroker
 ar_osc_amqinterconnect
 ar_osc_aspera
-ar_os_scc_binding
 ar_tls_ca
-ar_os_common
 osc_environments

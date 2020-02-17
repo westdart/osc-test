@@ -7,15 +7,15 @@
 
 # Get the roles under development
 - src: https://github.com/westdart/ar_os_common.git
-  version: v1.3
+  version: v1.4
 
 # Get the roles under development
 - src: https://github.com/westdart/ar_os_registry_secret.git
-  version: v1.3
+  version: v1.0
 
 # Get the roles under development
 - src: https://github.com/westdart/ar_os_scc_binding.git
-  version: v1.0
+  version: v1.1
 
 # Get the roles under development
 - src: https://github.com/westdart/ar_os_secret_link.git
@@ -23,19 +23,19 @@
 
 # Get the roles under development
 - src: https://github.com/westdart/ar_os_seed.git
-  version: v0.1
+  version: v1.0
 
 # Get the roles under development
 - src: https://github.com/westdart/ar_osc_amqbroker.git
-  version: v1.4
+  version: v1.5
 
 # Get the roles under development
 - src: https://github.com/westdart/ar_osc_amqinterconnect.git
-  version: v1.2
+  version: v1.3
 
 # Get the roles under development
 - src: https://github.com/westdart/ar_osc_aspera.git
-  version: v1.4
+  version: v1.5
 
 # Get the roles under development
 - src: https://github.com/westdart/ar_tls_ca.git
@@ -43,4 +43,4 @@
 
 # Get the roles under development
 - src: https://github.com/westdart/osc_environments.git
-  version: v1.5
+  version: v1.6

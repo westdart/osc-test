@@ -1,0 +1,13 @@
+---
+- name: Setfact for repo-dir
+  set_fact:
+    repo_dir: "/tmp/{{ git_repo_url.split('/') | last }}"
+
+- name: Get the environment variables
+  include_role:
+    name: ar_os_environment
+  vars:
+    ar_os_environment_git_ssh_key: "{{ git_credentials[git_repo_url].ssh_key }}"
+    ar_os_environment_git_repo:    "{{ git_repo_url }}"
+    ar_os_environment_name:        "{{ environment_name }}"
+    ar_os_environment_git_dest:    "{{ repo_dir }}"

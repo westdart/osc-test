@@ -88,9 +88,9 @@ credentials for such a service.
 ```
 registry_login_credentials:
   '<hostname of external registry being accessed>':
-   - secret_name: '<name to ascibe to any secret being created for these credentials'
+   - secret_name: '<name to ascribe to any secret being created for these credentials'
      username: '<the username for the external registry>'
      password: '<optional password for the user>'
      token: '<optional auth token for the user>'
-     operation: '<type of operation, currently either 'pull' (default) or 'push'>'
+     operation: '<type of operation, currently either "pull" (default) or "push">'
 ``` 

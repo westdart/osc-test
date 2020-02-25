@@ -7,22 +7,20 @@
   hosts: localhost
 
   vars:
-    app_target_instance_names: "{{ targets | default(app_instances | json_query('[*].name')) }}"
-    app_target_instances: "{{ app_instances | select_from_array_of_dicts('name', app_target_instance_names) }}"
-    generated_config_path: "{{ generated_config_dir }}"
-    ca_name: "{{ signing_authority | default('ca1') }}"
-    ca_base_path: "{{ ar_tls_ca_git_repo_path }}/{{ ca_name }}"
-    local_cert_path: "{{ generated_config_dir }}/certs"
     tasks: 'main'
-
-  vars_files:
-    - "{{ app_instances_file }}"
-    - "{{ amq_secrets_file | default(generated_config_dir + '/mjdi.vault') }}"
 
   tasks:
     - include_tasks: ../tasks/load_credential_vault.yml
+    - include_tasks: ../tasks/ensure_environment_vars.yml
 
-    - debug: var=app_target_instance_names
+    - name: Set the Certificate Authority
+      set_fact:
+        ca_name: "{{ signing_authority | default('ca1') }}"
+
+    - name: Set certificate paths
+      set_fact:
+        ca_base_path: "{{ ar_tls_ca_git_repo_path }}/{{ ca_name }}"
+        local_cert_path: "{{ generated_config_dir }}/certs"
 
     - name: Show targets
       debug:
@@ -54,7 +52,4 @@
       loop_control:
         loop_var: ar_osc_amqinterconnect_instance
 
-
-
-
-
+    - include_tasks: ../tasks/checkpoint_environment_vars.yml

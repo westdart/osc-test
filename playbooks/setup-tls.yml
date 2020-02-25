@@ -2,21 +2,23 @@
 # Note that the CA setup and host key and certs are created on the same machine (localhost) here.
 # In a real deployment these will likely be required to be on different servers.
 
-- name: Setup AMQ Interconnect
+- name: Setup TLS Certificates
   hosts: localhost
 
-  vars:
-    ca_name: "{{ signing_authority | default('ca1') }}"
-    ca_base_path: "{{ ar_tls_ca_git_repo_path }}/{{ ca_name }}"
-    local_cert_path: "{{ generated_config_dir }}/certs"
-    local_key_path: "{{ lookup('env','HOME') }}/keys/local"
-    app_target_instance_names: "{{ app_instances | json_query('[*].name') }}"
-    app_target_instances: "{{ app_instances }}"
-
-  vars_files:
-    - "{{ app_instances_file }}"
-
   tasks:
+    - include_tasks: ../tasks/load_credential_vault.yml
+    - include_tasks: ../tasks/ensure_environment_vars.yml
+
+    - name: Set the Certificate Authority
+      set_fact:
+        ca_name: "{{ signing_authority | default('ca1') }}"
+
+    - name: Set certificate paths
+      set_fact:
+        ca_base_path: "{{ ar_tls_ca_git_repo_path }}/{{ ca_name }}"
+        local_cert_path: "{{ generated_config_dir }}/certs"
+        local_key_path: "{{ lookup('env','HOME') }}/keys/local"
+
     - debug: var=app_target_instance_names
 
     - name: Show targets
@@ -132,3 +134,5 @@
       with_items:
         - "{{ app_target_instances | json_query('[*].name') }}"
         - "{{ ca_name }}"
+
+    - include_tasks: ../tasks/checkpoint_environment_vars.yml

@@ -7,19 +7,11 @@
   hosts: localhost
 
   vars:
-    app_target_instance_names: "{{ targets | default(app_instances | json_query('[*].name')) }}"
-    app_target_instances: "{{ app_instances | select_from_array_of_dicts('name', app_target_instance_names) }}"
-    generated_config_path: "{{ generated_config_dir }}"
     tasks: 'main'
-
-  vars_files:
-    - "{{ app_instances_file }}"
-    - "{{ amq_secrets_file | default(generated_config_dir + '/mjdi.vault') }}"
 
   tasks:
     - include_tasks: ../tasks/load_credential_vault.yml
-
-    - debug: var=app_target_instance_names
+    - include_tasks: ../tasks/ensure_environment_vars.yml
 
     - name: Show targets
       debug:
@@ -47,3 +39,5 @@
       when: "ar_osc_amqbroker_instance.incomingAddressList | length > 0"
       loop_control:
         loop_var: ar_osc_amqbroker_instance
+
+    - include_tasks: ../tasks/checkpoint_environment_vars.yml

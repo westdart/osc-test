@@ -7,10 +7,9 @@
 - name: Obtain Registry Certificate
   hosts: localhost
 
-  vars_files:
-    - "{{ credential_vault }}"
-
   tasks:
+    - include_tasks: ../tasks/load_credential_vault.yml
+
     - name: Include common role to get certificates
       include_role:
         name: ar_os_common
@@ -28,9 +27,6 @@
 
   vars:
     docker_version_1_13: '1.13' # Earlier versions of docker require extra steps
-
-  vars_files:
-    - "{{ credential_vault }}"
 
   tasks:
     - include_tasks: ../tasks/load_credential_vault.yml

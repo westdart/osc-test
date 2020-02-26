@@ -7,7 +7,7 @@
 ########################################################################################################################
 
 [[ -z ${SCRIPT_PATH+x} || -z "$SCRIPT_PATH" ]] && SCRIPT_PATH=$(cd $(dirname "${BASH_SOURCE[0]}"); pwd)
-[[ -z ${BASE_DIR+x} || -z "BASE_DIR" ]] && BASE_DIR=$(cd ${SCRIPT_PATH}/..; pwd)
+[[ -z ${BASE_DIR+x} || -z "$BASE_DIR" ]] && BASE_DIR=$(cd ${SCRIPT_PATH}/..; pwd)
 
 [[ $# == 0 ]] && { echo "Require path to requirements.yml file"; exit 1; }
 

@@ -14,15 +14,16 @@
 REQUIREMENTS_FILE=$1
 [[ ! -e ${REQUIREMENTS_FILE} ]] && { echo "Failed to find $REQUIREMENTS_FILE"; exit 1; }
 
-ROLES_DIR=${BASE_DIR}/roles
+ROLES_DIR="${BASE_DIR}/playbooks/roles"
 ANSIBLE_CFG_FILE="${BASE_DIR}/ansible.cfg"
+[[ ! -e "${ANSIBLE_CFG_FILE}" ]] && ANSIBLE_CFG_FILE="${BASE_DIR}/playbooks/ansible.cfg"
 
 if [[ -e "${ANSIBLE_CFG_FILE}" ]]
 then
     if grep -q roles_path $ANSIBLE_CFG_FILE
     then
         A_ROLES_DIR=$(grep roles_path ${ANSIBLE_CFG_FILE} | cut -d "=" -f 2 | tr -d '[:space:]')
-        pushd ${BASE_DIR} &> /dev/null
+        pushd $(diename ${ANSIBLE_CFG_FILE}) &> /dev/null
         [[ ! -d "${A_ROLES_DIR}" ]] && mkdir ${A_ROLES_DIR}
         ROLES_DIR=$(cd ${A_ROLES_DIR}; pwd)
         popd &> /dev/null

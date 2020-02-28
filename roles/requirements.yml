@@ -1,39 +1,53 @@
 # From 'openshift-applier'
 - src: git@github.com:redhat-cop/openshift-applier.git
   version: v2.1.2
+  scm: git
+
 # From 'openshift-labels'
 - src: git@github.com:redhat-cop/casl-ansible.git
   version: v3.11.4
+  scm: git
 
 - src: git@github.com:westdart/ar_git_repo.git
   version: v1.1
+  scm: git
 
 - src: git@github.com:westdart/ar_os_common.git
   version: v1.5
+  scm: git
 
 - src: git@github.com:westdart/ar_os_environment.git
   version: v1.1
+  scm: git
 
 - src: git@github.com:westdart/ar_os_registry_secret.git
   version: v1.0
+  scm: git
 
 - src: git@github.com:westdart/ar_os_scc_binding.git
   version: v1.1
+  scm: git
 
 - src: git@github.com:westdart/ar_os_secret_link.git
   version: v1.0
+  scm: git
 
 - src: git@github.com:westdart/ar_os_seed.git
   version: v1.0
+  scm: git
 
 - src: git@github.com:westdart/ar_osc_amqbroker.git
   version: v1.7
+  scm: git
 
 - src: git@github.com:westdart/ar_osc_amqinterconnect.git
   version: v1.3
+  scm: git
 
 - src: git@github.com:westdart/ar_osc_aspera.git
   version: v1.5
+  scm: git
 
 - src: git@github.com:westdart/ar_tls_ca.git
   version: v1.0
+  scm: git

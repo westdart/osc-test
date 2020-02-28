@@ -33,7 +33,7 @@
   scm: git
 
 - src: git@github.com:westdart/ar_os_seed.git
-  version: v1.0
+  version: v1.1
   scm: git
 
 - src: git@github.com:westdart/ar_osc_amqbroker.git

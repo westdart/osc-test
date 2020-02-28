@@ -12,7 +12,7 @@ General OpenShift related Ansible Roles:
 - ar_os_seed: Wrapper around openshift-applier, this generates a group-vars file to drive the applier to create ovjects in Openshift
 - ar_os_common: Holds various sets of tasks that enable quick development of features that are required.
   - get-cert.yml: Obtain a certificate chain from a server (calls validate-cert.yml)
-  - login.yml: Login to OpenShift. Ensures forced login when required (calls roles/casl-ansible/roles/openshift-login)
+  - login.yml: Login to OpenShift. Ensures forced login when required (calls casl-ansible/roles/openshift-login)
   - place-registry-cert.yml: Copies registry certs to required location on target hosts and triggers update-ca-trust and docker restarts
   - place-docker-certs.yml: Only used on Docker version < 1.13 - adds the certs to the docker configuration
   - registry-list.yml: Outputs list of upstream registries to '/etc/containers/registries.update(!conf)' (untested) 

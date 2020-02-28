@@ -6,12 +6,15 @@
 - name: Setup AMQ Broker
   hosts: localhost
 
+  vars_files:
+    - gitcredentials.vault
+
   vars:
     tasks: 'main'
 
   tasks:
-    - include_tasks: ../tasks/load_credential_vault.yml
     - include_tasks: ../tasks/ensure_environment_vars.yml
+    - include_tasks: ../tasks/load_credential_vault.yml
 
     - name: Set the Certificate Authority
       set_fact:
@@ -20,7 +23,7 @@
     - name: Set certificate paths
       set_fact:
         ca_base_path: "{{ ar_tls_ca_git_repo_path }}/{{ ca_name }}"
-        local_cert_path: "{{ generated_config_dir }}/certs"
+        local_cert_path: "{{ generated_config_path }}/certs"
 
     - name: Show targets
       debug:

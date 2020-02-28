@@ -2,12 +2,15 @@
 - name: Deploy Aspera Containers
   hosts: localhost
 
+  vars_files:
+    - gitcredentials.vault
+
   vars:
     tasks: 'main'
 
   tasks:
-    - include_tasks: ../tasks/load_credential_vault.yml
     - include_tasks: ../tasks/ensure_environment_vars.yml
+    - include_tasks: ../tasks/load_credential_vault.yml
 
     - name: "Generate the aspera config for each instance"
       include_role:

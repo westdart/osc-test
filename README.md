@@ -153,3 +153,20 @@ openshift_login_credentials:
     openshift_password: '<the password>'
 ```
 With an entry under 'openshift_login_credentials' for each cluster that needs to be accessed.
+
+# Setting up GIT credentials
+
+Obtain a bas64 encoded private ssh key:
+```
+# b64key=$(ansible-playbook playbooks/show-b64encoded-file.yml --extra-vars "thefile=<private-key-path>" | grep msg | awk -F '"' '{print $(NF-1)}')
+```
+
+Obtain the plain text file to be encrypted:
+```
+# echo -e "git_credentials:\n  '<git-repo-url>':\n    ssh_key: '${b64key}" > playbooks/gitcredentials.vault
+```
+
+Vault the file:
+```
+# ansible-vault encrypt playbooks/gitcredentials.vault
+```

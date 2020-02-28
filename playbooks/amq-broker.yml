@@ -6,12 +6,15 @@
 - name: Setup AMQ Broker
   hosts: localhost
 
+  vars_files:
+    - gitcredentials.vault
+
   vars:
     tasks: 'main'
 
   tasks:
-    - include_tasks: ../tasks/load_credential_vault.yml
     - include_tasks: ../tasks/ensure_environment_vars.yml
+    - include_tasks: ../tasks/load_credential_vault.yml
 
     - name: Show targets
       debug:

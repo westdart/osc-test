@@ -4,18 +4,15 @@
 - name: Login to OpenShift
   hosts: localhost
 
-  vars:
-    app_target_instance_names: "{{ targets | default(app_instances | json_query('[*].name')) }}"
-    app_target_instances: "{{ app_instances | select_from_array_of_dicts('name', app_target_instance_names) }}"
-
   vars_files:
-    - "{{ app_instances_file }}"
+    - gitcredentials.vault
 
   tasks:
+    - include_tasks: ../tasks/ensure_environment_vars.yml
+    - include_tasks: ../tasks/load_credential_vault.yml
+
     - set_fact:
         _oc_login_url: "{{ app_target_instances[0]['oc_login_url'] | default(oc_login_url) }}"
-
-    - include_tasks: ../tasks/load_credential_vault.yml
 
     - name: "Assert OpenShift Login URL provided"
       assert:

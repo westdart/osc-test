@@ -1,6 +1,7 @@
 ---
 - hosts: localhost
-
+  vars_files:
+    - gitcredentials.vault
   tasks:
     - include_tasks: ../tasks/load_credential_vault.yml
     - include_tasks: ../tasks/checkpoint_environment_vars.yml

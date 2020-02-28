@@ -6,13 +6,13 @@
   version: v3.11.4
 
 - src: https://github.com/westdart/ar_git_repo.git
-  version: v1.0
+  version: v1.1
 
 - src: https://github.com/westdart/ar_os_common.git
   version: v1.5
 
 - src: https://github.com/westdart/ar_os_environment.git
-  version: v1.0
+  version: v1.1
 
 - src: https://github.com/westdart/ar_os_registry_secret.git
   version: v1.0
@@ -27,7 +27,7 @@
   version: v1.0
 
 - src: https://github.com/westdart/ar_osc_amqbroker.git
-  version: v1.6
+  version: v1.7
 
 - src: https://github.com/westdart/ar_osc_amqinterconnect.git
   version: v1.3

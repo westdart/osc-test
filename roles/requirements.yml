@@ -13,7 +13,7 @@
   scm: git
 
 - src: git@github.com:westdart/ar_os_common.git
-  version: v1.5
+  version: v1.6
   scm: git
 
 - src: git@github.com:westdart/ar_os_environment.git
@@ -37,15 +37,15 @@
   scm: git
 
 - src: git@github.com:westdart/ar_osc_amqbroker.git
-  version: v1.7
+  version: v1.8
   scm: git
 
 - src: git@github.com:westdart/ar_osc_amqinterconnect.git
-  version: v1.3
+  version: v1.4
   scm: git
 
 - src: git@github.com:westdart/ar_osc_aspera.git
-  version: v1.5
+  version: v1.6
   scm: git
 
 - src: git@github.com:westdart/ar_tls_ca.git

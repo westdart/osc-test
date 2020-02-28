@@ -9,7 +9,7 @@
   scm: git
 
 - src: git@github.com:westdart/ar_git_repo.git
-  version: v1.1
+  version: v1.2
   scm: git
 
 - src: git@github.com:westdart/ar_os_common.git

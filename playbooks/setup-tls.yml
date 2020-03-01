@@ -37,6 +37,7 @@
       vars:
         ar_tls_ca_path: "{{ ca_base_path }}"
         ar_tls_ca_name: "{{ ca_name }}"
+        ar_tls_ca_git_ssh_key: "{{ git_credentials[ar_tls_ca_git_repo].ssh_key }}"
 
     - name: Ensure local cert directory exists
       file:
@@ -116,6 +117,7 @@
         ar_tls_ca_name: "{{ ca_name }}"
         ar_tls_ca_certlist: []
         ar_tls_ca_revocation_list: "{{ revocation_list }}"
+        ar_tls_ca_git_ssh_key: "{{ git_credentials[ar_tls_ca_git_repo].ssh_key }}"
 
     - name: "Use CA to sign certificates"
       include_role:
@@ -127,6 +129,7 @@
         ar_tls_ca_certlist: [
           {"certfile": "{{ item.name }}.crt", "csrfile": "{{ item.name }}.csr", "altnames": ["{{ item | external_ic_host(deployment_phase, amq_ic_domain) }}"], "ipaddrs": []}
         ]
+        ar_tls_ca_git_ssh_key: "{{ git_credentials[ar_tls_ca_git_repo].ssh_key }}"
       with_items:
         - "{{ app_target_instances }}"
 

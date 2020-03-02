@@ -182,28 +182,57 @@ Vault the file:
 ```
 Remove existing secrets and keys:
 ```
-# ansible-playbook --extra-vars "git_repo_url=${GIT_URL}/osc_environments.git" --extra-vars "environment_name=${ENV}" --vault-id cred@~/.vaults/cred.txt --vault-id app@~/.vaults/app.txt --vault-id app@~/.vaults/git.txt --extra-vars 'resest_secrets=true' playbooks/reset-secrets.yml
+# ansible-playbook --extra-vars "git_repo_url=${GIT_URL}/osc_environments.git" \
+                   --extra-vars "environment_name=${ENV}" \
+                   --vault-id cred@~/.vaults/cred.txt \
+                   --vault-id app@~/.vaults/app.txt \
+                   --vault-id app@~/.vaults/git.txt \
+                   --extra-vars 'resest_secrets=true' \
+                   playbooks/reset-secrets.yml
 ```
 
 Setup keys and secrets:
 ```
-# ansible-playbook --extra-vars "git_repo_url=${GIT_URL}/osc_environments.git" --extra-vars "environment_name=${ENV}" --vault-id cred@~/.vaults/cred.txt --vault-id app@~/.vaults/app.txt --vault-id app@~/.vaults/git.txt playbooks/prepare.yml
+# ansible-playbook --extra-vars "git_repo_url=${GIT_URL}/osc_environments.git" \
+                   --extra-vars "environment_name=${ENV}" \
+                   --vault-id cred@~/.vaults/cred.txt \
+                   --vault-id app@~/.vaults/app.txt \
+                   --vault-id app@~/.vaults/git.txt \
+                   playbooks/prepare.yml
 ```
 
 Build AMQ:
 ```
 # export TARGETS='"CENTRAL"'
-# ansible-playbook --extra-vars "git_repo_url=${GIT_URL}/osc_environments.git" --extra-vars "environment_name=${ENV}" --vault-id cred@~/.vaults/cred.txt --vault-id app@~/.vaults/app.txt --vault-id app@~/.vaults/git.txt --extra-vars '{"targets": ['${TARGETS}']}' playbooks/amq-broker.yml
+# ansible-playbook --extra-vars "git_repo_url=${GIT_URL}/osc_environments.git" \
+                   --extra-vars "environment_name=${ENV}" \
+                   --vault-id cred@~/.vaults/cred.txt \
+                   --vault-id app@~/.vaults/app.txt \
+                   --vault-id app@~/.vaults/git.txt \
+                   --extra-vars '{"targets": ['${TARGETS}']}' \
+                   playbooks/amq-broker.yml
 ```
 
 Build Interconnect:
 ```
 # export TARGETS='"MESH","CENTRAL"'
-# ansible-playbook --extra-vars "git_repo_url=${GIT_URL}/osc_environments.git" --extra-vars "environment_name=${ENV}" --vault-id cred@~/.vaults/cred.txt --vault-id app@~/.vaults/app.txt --vault-id app@~/.vaults/git.txt --extra-vars '{"targets": ['${TARGETS}']}' playbooks/amq-interconnect.yml
+# ansible-playbook --extra-vars "git_repo_url=${GIT_URL}/osc_environments.git" \
+                   --extra-vars "environment_name=${ENV}" \
+                   --vault-id cred@~/.vaults/cred.txt \
+                   --vault-id app@~/.vaults/app.txt \
+                   --vault-id app@~/.vaults/git.txt \
+                   --extra-vars '{"targets": ['${TARGETS}']}' \
+                   playbooks/amq-interconnect.yml
 ```
 
 Build Aspera:
 ```
 # export TARGETS='"CENTRAL"'
-# ansible-playbook --extra-vars "git_repo_url=${GIT_URL}/osc_environments.git" --extra-vars "environment_name=${ENV}" --vault-id cred@~/.vaults/cred.txt --vault-id app@~/.vaults/app.txt --vault-id app@~/.vaults/git.txt --extra-vars '{"targets": ['${TARGETS}']}' playbooks/aspera.yml
+# ansible-playbook --extra-vars "git_repo_url=${GIT_URL}/osc_environments.git" \
+                   --extra-vars "environment_name=${ENV}" \
+                   --vault-id cred@~/.vaults/cred.txt \
+                   --vault-id app@~/.vaults/app.txt \
+                   --vault-id app@~/.vaults/git.txt \
+                   --extra-vars '{"targets": ['${TARGETS}']}' \
+                   playbooks/aspera.yml
 ```

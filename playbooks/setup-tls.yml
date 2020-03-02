@@ -12,16 +12,6 @@
     - include_tasks: ../tasks/ensure_environment_vars.yml
     - include_tasks: ../tasks/load_credential_vault.yml
 
-    - name: Set the Certificate Authority
-      set_fact:
-        ca_name: "{{ signing_authority | default('ca1') }}"
-
-    - name: Set certificate paths
-      set_fact:
-        ca_base_path: "{{ ar_tls_ca_git_repo_path }}/{{ ca_name }}"
-        local_cert_path: "{{ generated_config_path }}/certs"
-        local_key_path: "{{ lookup('env','HOME') }}/keys/local"
-
     - debug: var=app_target_instance_names
 
     - name: Show targets

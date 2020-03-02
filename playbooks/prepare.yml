@@ -1,0 +1,7 @@
+---
+
+- name: "Setup the TLS CA and sign certs"
+  import_playbook: setup-tls.yml
+
+- name: "Generate application secrets"
+  import_playbook: generate-secrets.yml

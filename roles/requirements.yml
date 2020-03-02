@@ -17,7 +17,7 @@
   scm: git
 
 - src: git@github.com:westdart/ar_os_environment.git
-  version: v1.3
+  version: v1.4
   scm: git
 
 - src: git@github.com:westdart/ar_os_registry_secret.git

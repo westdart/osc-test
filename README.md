@@ -92,7 +92,7 @@ or 7 stages:
  
 Any of the stages can be executed separately using:
 ```
-# ./scripts/build.sh -t <target> -p <password> -i <app-instances file> --extra-vars "tasks=<stage>" -f <app>
+# ./scripts/build.sh -t <target> -p <password> -i <app-instances file> --extra-vars "selected_tasks=<stage>" -f <app>
 ```
 Where:
 - <stage> is one of the stages above
@@ -115,7 +115,7 @@ or
 
 To just invoke the build of Docker images execute:
 ```
-# ./scripts/build.sh -t <target> -p <password> -i <app-instances file> --extra-vars "tasks=docker" -f aspera
+# ./scripts/build.sh -t <target> -p <password> -i <app-instances file> --extra-vars "selected_tasks=docker" -f aspera
 ```
 
 ## Sample

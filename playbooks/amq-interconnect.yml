@@ -10,7 +10,7 @@
     - gitcredentials.vault
 
   vars:
-    tasks: 'main'
+    selected_tasks: 'main'
 
   tasks:
     - include_tasks: ../tasks/ensure_environment_vars.yml
@@ -26,7 +26,7 @@
     - name: "Include ar_osc_amqinterconnect role in loop across target instances"
       include_role:
         name: ar_osc_amqinterconnect
-        tasks_from: "{{ tasks }}"
+        tasks_from: "{{ selected_tasks }}"
       vars:
         ar_osc_amqinterconnect_ns:              "{{ ar_osc_amqinterconnect_instance | app_namespace(deployment_phase) }}"
         ar_osc_amqinterconnect_name:            "{{ ar_osc_amqinterconnect_instance | app_common_name }}"

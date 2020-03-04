@@ -3,6 +3,7 @@ casl-ansible
 ar_git_repo
 ar_os_common
 ar_os_environment
+ar_os_group_users
 ar_os_registry_secret
 ar_os_scc_binding
 ar_os_secret_link

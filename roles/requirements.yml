@@ -20,6 +20,10 @@
   version: v1.5
   scm: git
 
+- src: https://github.com/westdart/ar_os_group_users.git
+  version: v1.0
+  scm: git
+
 - src: https://github.com/westdart/ar_os_registry_secret.git
   version: v1.0
   scm: git

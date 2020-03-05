@@ -187,7 +187,7 @@ Remove existing secrets and keys:
                    --vault-id cred@~/.vaults/cred.txt \
                    --vault-id app@~/.vaults/app.txt \
                    --vault-id app@~/.vaults/git.txt \
-                   --extra-vars 'resest_secrets=true' \
+                   --extra-vars 'reset_secrets=true' \
                    playbooks/reset-secrets.yml
 ```
 

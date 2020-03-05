@@ -15,3 +15,9 @@
       vars:
         ar_os_group_users_group_name: "{{ group }}"
         ar_os_group_users_members:    "{{ users }}"
+
+    - name: Include ar_os_cluster_reader for {{ group }}
+      include_role:
+        name: ar_os_cluster_reader
+      vars:
+        ar_os_cluster_reader_group: "{{ group }}"

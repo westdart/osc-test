@@ -1,6 +1,7 @@
 openshift-applier
 casl-ansible
 ar_git_repo
+ar_os_cluster_reader
 ar_os_common
 ar_os_environment
 ar_os_group_users

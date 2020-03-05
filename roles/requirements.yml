@@ -12,6 +12,10 @@
   version: v1.4
   scm: git
 
+- src: https://github.com/westdart/ar_os_cluster_reader.git
+  version: v1.0
+  scm: git
+
 - src: https://github.com/westdart/ar_os_common.git
   version: v1.6
   scm: git

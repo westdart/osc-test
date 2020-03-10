@@ -102,7 +102,7 @@
     - name: "Use CA to revoke certificates"
       include_role:
         name: ar_tls_ca
-        tasks_from: sign
+        tasks_from: _sign
       vars:
         ar_tls_ca_name: "{{ ca_name }}"
         ar_tls_ca_certlist: []
@@ -113,7 +113,7 @@
     - name: "Use CA to sign certificates"
       include_role:
         name: ar_tls_ca
-        tasks_from: sign
+        tasks_from: _sign
       vars:
         ar_tls_ca_name: "{{ ca_name }}"
         ar_tls_ca_git_repo: "{{ ca_git_repo }}"

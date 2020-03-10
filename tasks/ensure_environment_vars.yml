@@ -1,8 +1,4 @@
 ---
-- name: Setfact for repo-dir
-  set_fact:
-    git_repo_dir: "/tmp/{{ git_repo_url.split('/') | last }}"
-
 - name: Setfact for repo version
   set_fact:
     git_repo_version: "master"
@@ -15,5 +11,4 @@
     ar_os_environment_name:        "{{ environment_name }}"
     ar_os_environment_git_ssh_key: "{{ git_credentials[git_repo_url].ssh_key }}"
     ar_os_environment_git_repo:    "{{ git_repo_url }}"
-    ar_os_environment_git_dest:    "{{ git_repo_dir }}"
     ar_os_environment_git_version: "{{ git_repo_version }}"

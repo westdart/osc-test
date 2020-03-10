@@ -25,15 +25,16 @@
       include_role:
         name: ar_tls_ca
       vars:
-        ar_tls_ca_path: "{{ ca_base_path }}"
         ar_tls_ca_name: "{{ ca_name }}"
+        ar_tls_ca_git_repo: "{{ ca_git_repo }}"
         ar_tls_ca_git_ssh_key: "{{ git_credentials[ar_tls_ca_git_repo].ssh_key }}"
 
     - name: Ensure local cert directory exists
       file:
         path: "{{ item }}"
         state: directory
-        mode: 0700
+# TODO: git does not track directory permission, therefore this always triggers a change. Work out how to have git create dirs with required permissions.
+#        mode: 0700
       with_items:
         - "{{ local_cert_path }}"
         - "{{ local_key_path }}"
@@ -65,7 +66,7 @@
         - "{{ app_target_instances }}"
 
     - debug:
-        msg: "Generating key and CSR: {{ local_key_path }}/{{ item.name }}.key -> {{ local_cert_path }}/{{ item.name }}.csr -> {{ ca_base_path }}/in/{{ item.name }}.csr"
+        msg: "Generating key and CSR: {{ local_key_path }}/{{ item.name }}.key -> {{ local_cert_path }}/{{ item.name }}.csr -> {{ ar_tls_ca_path }}/in/{{ item.name }}.csr"
       with_items:
         - "{{ app_target_instances }}"
 
@@ -83,7 +84,7 @@
     - name: Copy CSR to CA
       copy:
         src: "{{ local_cert_path }}/{{ item.name }}.csr"
-        dest: "{{ ca_base_path }}/in/{{ item.name }}.csr"
+        dest: "{{ ar_tls_ca_path }}/in/{{ item.name }}.csr"
       with_items:
         - "{{ app_target_instances }}"
 
@@ -103,10 +104,10 @@
         name: ar_tls_ca
         tasks_from: sign
       vars:
-        ar_tls_ca_path: "{{ ca_base_path }}"
         ar_tls_ca_name: "{{ ca_name }}"
         ar_tls_ca_certlist: []
         ar_tls_ca_revocation_list: "{{ revocation_list }}"
+        ar_tls_ca_git_repo: "{{ ca_git_repo }}"
         ar_tls_ca_git_ssh_key: "{{ git_credentials[ar_tls_ca_git_repo].ssh_key }}"
 
     - name: "Use CA to sign certificates"
@@ -114,8 +115,8 @@
         name: ar_tls_ca
         tasks_from: sign
       vars:
-        ar_tls_ca_path: "{{ ca_base_path }}"
         ar_tls_ca_name: "{{ ca_name }}"
+        ar_tls_ca_git_repo: "{{ ca_git_repo }}"
         ar_tls_ca_certlist: [
           {"certfile": "{{ item.name }}.crt", "csrfile": "{{ item.name }}.csr", "altnames": ["{{ item | external_ic_host(deployment_phase, amq_ic_domain) }}"], "ipaddrs": []}
         ]
@@ -125,7 +126,7 @@
 
     - name: Copy the signed certs from CA
       copy:
-        src: "{{ ca_base_path }}/out/{{ item }}.crt"
+        src: "{{ ar_tls_ca_path }}/out/{{ item }}.crt"
         dest: "{{ local_cert_path }}/{{ item }}.crt"
       with_items:
         - "{{ app_target_instances | json_query('[*].name') }}"

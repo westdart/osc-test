@@ -3,6 +3,7 @@
 
 - name: Login to OpenShift
   hosts: localhost
+  force_handlers: True
 
   vars_files:
     - gitcredentials.vault

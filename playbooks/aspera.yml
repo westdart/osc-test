@@ -1,6 +1,7 @@
 ---
 - name: Deploy Aspera Containers
   hosts: localhost
+  force_handlers: True
 
   vars_files:
     - gitcredentials.vault

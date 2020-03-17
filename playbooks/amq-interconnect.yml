@@ -5,6 +5,7 @@
 
 - name: Setup AMQ Broker
   hosts: localhost
+  force_handlers: True
 
   vars_files:
     - gitcredentials.vault

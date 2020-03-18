@@ -32,16 +32,14 @@
         ar_osc_amqinterconnect_ns:              "{{ ar_osc_amqinterconnect_instance | app_namespace(deployment_phase) }}"
         ar_osc_amqinterconnect_name:            "{{ ar_osc_amqinterconnect_instance | app_common_name }}"
         ar_osc_amqinterconnect_config_dest:     "{{ generated_config_path }}/{{ ar_osc_amqinterconnect_instance | app_common_name }}"
-        ar_osc_amqinterconnect_k8s_template:    "{{ amqic_template }}"
-        ar_osc_amqinterconnect_ca_cert:         "{{ ca_name }}.crt"
         ar_osc_amqinterconnect_ic_username:     "{{ secrets[ar_osc_amqinterconnect_instance | app_common_name].ic_username }}"
         ar_osc_amqinterconnect_ic_password:     "{{ secrets[ar_osc_amqinterconnect_instance | app_common_name].ic_password }}"
         ar_osc_amqinterconnect_domain:          "{{ amq_ic_domain }}"
         ar_osc_amqinterconnect_broker_username: "{{ broker_ic_user | default(secrets[ar_osc_amqinterconnect_instance | app_common_name].amq_admin_username) }}"
         ar_osc_amqinterconnect_broker_password: "{{ secrets[ar_osc_amqinterconnect_instance | app_common_name][broker_ic_user] if broker_ic_user is defined else secrets[ar_osc_amqinterconnect_instance | app_common_name ].amq_admin_password }}"
         ar_osc_amqinterconnect_tls_key:         "{{ secrets[ar_osc_amqinterconnect_instance | app_common_name].tls_key }}"
-        CA_CONTENT:                             "{{ lookup('file', local_cert_path + '/' + ca_name + '.crt') }}"
-        CERT_CONTENT:                           "{{ lookup('file', local_cert_path + '/' + ar_osc_amqinterconnect_instance.name + '.crt') }}"
+        ar_osc_amqinterconnect_cert_content:    "{{ lookup('file', local_cert_path + '/' + ar_osc_amqinterconnect_instance.name + '.crt') }}"
+        ar_osc_amqinterconnect_ca_cert_content: "{{ lookup('file', local_cert_path + '/' + ca_name + '.crt') }}"
       with_items:
         - "{{ app_target_instances }}"
       loop_control:

@@ -9,6 +9,6 @@
     name: ar_os_environment
   vars:
     ar_os_environment_name:        "{{ environment_name }}"
-    ar_os_environment_git_ssh_key: "{{ git_credentials[git_repo_url].ssh_key }}"
+    ar_os_environment_git_ssh_key: "{{ git_credentials[git_repo_url].ssh_key | default('') }}"
     ar_os_environment_git_repo:    "{{ git_repo_url }}"
     ar_os_environment_git_version: "{{ git_repo_version }}"

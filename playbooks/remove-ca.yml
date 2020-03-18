@@ -1,0 +1,22 @@
+---
+- name: Remove CA
+  hosts: localhost
+
+  vars_files:
+    - gitcredentials.vault
+
+  vars:
+    remove_ca: false
+
+  tasks:
+    - include_tasks: ../tasks/ensure_environment_vars.yml
+
+    - name: "Remove CA"
+      include_role:
+        name: ar_tls_ca
+        tasks_from: reset
+      vars:
+        ar_tls_ca_name: "{{ ca_name }}"
+        ar_tls_ca_git_repo: "{{ ca_git_repo }}"
+        ar_tls_ca_git_ssh_key: "{{ git_credentials[ar_tls_ca_git_repo].ssh_key }}"
+      when: remove_ca | bool

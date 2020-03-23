@@ -447,17 +447,6 @@ function replaceInFile()
     return 0
 }
 
-########################################################################################################################
-# Check a string against the known valid CHM version scheme
-# Arg1 : The string to test
-# Return : 0 if valid, otherwise 1
-########################################################################################################################
-function validChmVersion()
-{
-    [[ $1 =~ [0-9]*\.[0-9]*\.[0-9]* ]] || { log_error "CHM version is not correct: $1"; return 1; }
-    return 0
-}
-
 function isFunction()
 {
     local func=$1

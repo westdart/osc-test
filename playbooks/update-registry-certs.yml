@@ -25,9 +25,6 @@
   hosts: "{{ target }}"
   become: true
 
-  vars:
-    docker_version_1_13: '1.13' # Earlier versions of docker require extra steps
-
   tasks:
     - include_tasks: ../tasks/load_credential_vault.yml
 

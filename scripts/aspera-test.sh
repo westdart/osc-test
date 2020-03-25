@@ -127,6 +127,13 @@ function os_logout()
     oc logout &> /dev/null
 }
 
+# To enable CENTRAL to talk locally with LOCAL_DEPLOYED, need to join the project networks
+function join_networks()
+{
+    oc adm pod-network join-projects --to=${CENTRAL_NS} ${LOCAL_DEPLOYED_NS}
+    oc adm pod-network join-projects --to=${LOCAL_DEPLOYED_NS} ${CENTRAL_NS}
+}
+
 function basic_test()
 {
     local target=$1
@@ -635,6 +642,7 @@ function print_details()
     log_info "responder fasp port=$(getFaspPort ${responder} ${instigator})"
 }
 
+# Execute a single test
 function do_test()
 {
     LOG_ENTRY
@@ -693,6 +701,7 @@ function do_test()
 
 function run_tests()
 {
+    join_networks
     for ((i = 0; i < ${#TESTS[@]}; i++))
     do
         do_test ${TESTS[$i]} || { print_details ${TESTS[$i]}; return 1; }

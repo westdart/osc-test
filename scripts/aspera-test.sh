@@ -50,11 +50,15 @@ source "$(dirname ${BASH_SOURCE[0]})/common-properties.sh"
 SECRET_FILE=~/.mjdisecrets
 
 TESTS=(
-#   NAME                INSTIGATOR     RESPONDER      DIRECTION
-    "central_send       CENTRAL        DEPLOYED       send"
-    "deployed_send      DEPLOYED       CENTRAL        send"
-    "central_send_local CENTRAL        LOCAL_DEPLOYED send"
-    "local_send         LOCAL_DEPLOYED CENTRAL        send"
+#   NAME                   INSTIGATOR     RESPONDER      DIRECTION
+    "central_send          CENTRAL        DEPLOYED       send"
+    "deployed_send         DEPLOYED       CENTRAL        send"
+    "central_send_local    CENTRAL        LOCAL_DEPLOYED send"
+    "local_send            LOCAL_DEPLOYED CENTRAL        send"
+    "central_receive       CENTRAL        DEPLOYED       receive"
+    "deployed_receive      DEPLOYED       CENTRAL        receive"
+    "central_receive_local CENTRAL        LOCAL_DEPLOYED receive"
+    "local_receive         LOCAL_DEPLOYED CENTRAL        receive"
 )
 
 shopt -s expand_aliases
@@ -253,7 +257,7 @@ function execute_cmd()
     declare -a cmdarg=("${!1}")
     declare -a pipearg=("${!2}")
 
-    log_info "cm: ${cmdarg[@]} | ${pipearg[@]}"
+    log_debug "cm: ${cmdarg[@]} | ${pipearg[@]}"
     "${cmdarg[@]}" | "${pipearg[@]}"
 }
 
@@ -405,7 +409,7 @@ function send()
 
     log_info "Sending message: Posting to ${host} (${instigator} token: ${token}) the following JSON payload:\n ${json}"
 
-    log_info "POSTING: curl -k -H \"Authorization: Basic ${token}\" -X POST https://${host}/ops/transfers -d ${json}"
+    log_debug "Curl command: curl -k -H \"Authorization: Basic ${token}\" -X POST https://${host}/ops/transfers -d ${json}"
 
     id=$(eval $(echo curl -k -H \"Authorization: Basic ${token}\" -X POST https://${host}/ops/transfers -d ${json}) 2>/dev/null | ${JQ} '.id' | awk -F '"' '{print $2}') \
       || { log_error "Failed to post json to 'https://${host}/ops/transfers' with token '${token}' "; return 1; }
@@ -423,7 +427,7 @@ function get_transfer_status()
     local id=$3
     [[ -z "$id" ]] && id=$TX_ID
 
-    log_info "GETTING STATUS: curl -ki -H 'Authorization: Basic ${token}' -X GET https://${host}/ops/transfers/${id}"
+    log_debug "GETTING STATUS: curl -ki -H 'Authorization: Basic ${token}' -X GET https://${host}/ops/transfers/${id}"
     curl -ki -H "Authorization: Basic ${token}" -X GET https://${host}/ops/transfers/${id} 2>/dev/null
     LOG_EXIT
 }
@@ -446,7 +450,7 @@ function execute_test()
       || { log_error "Failed to put file for $name"; return 1; }
 
     id=$(send ${name} ${instigator} ${responder} ${direction} ${filename}) \
-      || { log_error "Failed to send from Central to Deployed using docker net"; return 1; }
+      || { log_error "Failed to ${direction} from ${instigator} to ${responder} using docker net"; return 1; }
 
     echo "$id:$filename:$file_content"
     LOG_EXIT
@@ -662,7 +666,7 @@ function do_test()
     host=$(getHost ${instigator}) || { log_error "Could not get host to send to (${name})"; return 1; }
     token=$(getToken ${instigator}) || { log_error "Could not get token to use in send (${name})"; return 1; }
 
-    log_always "TEST: $name"
+    log_test "$name"
     prepare_test "${name}" "${instigator}" "${responder}" "${direction}" || \
       { log_error "Failed to prepare test (${name})"; return 1; }
 
@@ -672,9 +676,9 @@ function do_test()
     filename=$(basename $(echo "${result}" | awk -F ':' '{print $2}'))
     content=$(echo "${result}" | awk -F ':' '{print $3}')
 
-    log_info "${name}: Transaction ID: $id"
-    log_info "${name}: filename: $filename"
-    log_info "${name}: content: $content"
+    log_debug "${name}: Transaction ID: $id"
+    log_debug "${name}: filename: $filename"
+    log_debug "${name}: content: $content"
 
     [[ -z "$id" ]] && { log_error "Failed to even transact with server"; return 1; }
     export TX_ID=$id
@@ -683,13 +687,13 @@ function do_test()
     json=$(get_transfer_status ${host} ${token} ${id} | tail -n +5)
     log_debug "Status JSON: $json"
     local tx_filepath=$(echo "${json}" | ${JQ} '.start_spec.source_paths[0]' | sed 's/"//g')
-    log_info "${name}: tx_filepath: $tx_filepath"
+    log_debug "${name}: tx_filepath: $tx_filepath"
 
     local tx_filename=$(basename $tx_filepath)
-    log_info "${name}: tx_filename: $tx_filename"
+    log_debug "${name}: tx_filename: $tx_filename"
 
     local tx_content=$(pull_content ${name} ${instigator} ${responder} ${direction})
-    log_info "${name}: tx_content: $tx_content"
+    log_debug "${name}: tx_content: $tx_content"
 
     log_info "Use 'get_transfer_status ${host} ${token} ${id}' to obtain updates on transaction status"
     [[ "$filename" != "$tx_filename" ]] && { failed=true; log_fail "${name}: File names not the same: $filename != $tx_filename"; }
@@ -706,6 +710,10 @@ function run_tests()
     do
         do_test ${TESTS[$i]} || { print_details ${TESTS[$i]}; return 1; }
     done
+
+    log_always "Tests run: $[$TEST_COUNT]"
+    log_always "Tests passed: $[$PASS_COUNT]"
+    log_always "Tests failed: $[$FAIL_COUNT]"
 }
 
 function printAllDetails()

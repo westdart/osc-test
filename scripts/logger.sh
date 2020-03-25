@@ -30,6 +30,9 @@ LOGGER_CLR_RED='\033[1;31m'
 LOGGER_CLR_GREEN='\033[1;32m'
 LOGGER_CLR_NC='\033[0m' # No Color
 
+TEST_COUNT=0
+FAIL_COUNT=0
+PASS_COUNT=0
 
 function scriptDir() {
     if [[ "$0" == "-bash" || "$0" == "-sh" ]]
@@ -308,8 +311,22 @@ log_error(){
 # arg1: The message to log
 # Return: 0.
 ##############################################################################
+log_test(){
+    if [ ${LOG_ERROR} -le ${LOG_LEVEL} ];then
+        TEST_COUNT=$[$TEST_COUNT+1]
+        X_log "TEST" "${@}"
+    fi
+}
+
+##############################################################################
+# Description:
+# Log an fail message to standard out.
+# arg1: The message to log
+# Return: 0.
+##############################################################################
 log_fail(){
     if [ ${LOG_ERROR} -le ${LOG_LEVEL} ];then
+        FAIL_COUNT=$[$FAIL_COUNT+1]
         X_log "FAILED" "${@}"
     fi
 }
@@ -322,6 +339,7 @@ log_fail(){
 ##############################################################################
 log_pass(){
     if [ ${LOG_ERROR} -le ${LOG_LEVEL} ];then
+        PASS_COUNT=$[$PASS_COUNT+1]
         X_log "PASSED" "${@}"
     fi
 }

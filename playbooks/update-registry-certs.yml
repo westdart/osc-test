@@ -28,7 +28,7 @@
   tasks:
     - include_tasks: ../tasks/load_credential_vault.yml
 
-    - name: Include common role to get certificates
+    - name: Include common role to place the certificates
       include_role:
         name: ar_os_common
         tasks_from: place-registry-cert

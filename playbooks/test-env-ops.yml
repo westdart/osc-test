@@ -1,0 +1,38 @@
+---
+- hosts: localhost
+  force_handlers: True
+  vars_files:
+    - gitcredentials.vault
+  tasks:
+    - include_tasks: ../tasks/ensure_environment_vars.yml
+    - include_tasks: ../tasks/load_credential_vault.yml
+
+    - name: Ensure the README.md file exists
+      file:
+        path: "{{ _ar_os_environment_git_repo_dest }}/README.md"
+        state: file
+
+    - name: Get number of lines in the README.md file
+      shell: "cat {{ _ar_os_environment_git_repo_dest }}/README.md | wc -l"
+      register: initial_line_count
+
+    # Make a material change
+    - name: Add a new line to README.md
+      shell: echo "" >> {{ _ar_os_environment_git_repo_dest }}/README.md
+
+    - include_tasks: ../tasks/checkpoint_environment_vars.yml
+
+- hosts: localhost
+  force_handlers: True
+  vars_files:
+    - gitcredentials.vault
+  tasks:
+    - include_tasks: ../tasks/ensure_environment_vars.yml
+    - include_tasks: ../tasks/load_credential_vault.yml
+
+    - name: Get subsequent number of lines in the README.md file
+      shell: "cat {{ _ar_os_environment_git_repo_dest }}/README.md | wc -l"
+      register: subsequent_line_count
+
+    - assert:
+        that: subsequent_line_count.stdout | int == initial_line_count.stdout | int + 1

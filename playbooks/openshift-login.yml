@@ -26,3 +26,10 @@
         tasks_from: login
       vars:
         ar_os_common_openshift_login_url: "{{ _oc_login_url }}"
+
+    - name: check logged in
+      shell: oc project | awk '{print $NF}' | awk -F '"' '{print $2}'
+      register: logged_in_url
+
+    - assert:
+        that: logged_in_url.stdout == _oc_login_url

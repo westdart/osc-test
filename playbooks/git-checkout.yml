@@ -1,8 +1,0 @@
----
-- hosts: localhost
-  force_handlers: True
-  vars_files:
-    - gitcredentials.vault
-  tasks:
-    - include_tasks: ../tasks/ensure_environment_vars.yml
-    - include_tasks: ../tasks/load_credential_vault.yml

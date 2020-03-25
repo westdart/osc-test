@@ -45,6 +45,9 @@
 #
 
 source "$(dirname ${BASH_SOURCE[0]})/wrapper.sh"
+source "$(dirname ${BASH_SOURCE[0]})/common-properties.sh"
+
+SECRET_FILE=~/.mjdisecrets
 
 TESTS=(
 #   NAME                INSTIGATOR     RESPONDER      DIRECTION
@@ -81,14 +84,22 @@ export DEPLOYED_ROOT_PATH='/mjdi/local/GFT'
 export CENTRAL_TOKEN=$(echo -n "MjdiCentral:${CENTRAL_ROOT_PATH}" | base64)
 export DEPLOYED_TOKEN=$(echo -n "MjdiDeployed:${DEPLOYED_ROOT_PATH}" | base64)
 
-export ASPERA_USER=aspera
-# New value for when Docker builds are done : export ASPERA_PASSWORD=swEeLayVNNQHeImUDTHBRvoEt
-export ASPERA_PASSWORD=swEeLayVNNQHeImUDTHBRvoEt
-
 export SSH_NODE_PORT=30001
 export FASP_NODE_PORT=30002
 export SSH_INTERNAL_PORT=30001
 export FASP_INTERNAL_PORT=30002
+
+function getAsperaPassword()
+{
+    local vaultSecret=$(getSecret unlock_app_cred)
+    echo "$vaultSecret" > ~/.tmpsecret
+    addTempFiles ~/.tmpsecret
+    local vaultFile="$(dirname ${BASH_SOURCE[0]})/../../osc_environments.git/DEV/varfiles/app-environment.vault"
+    ansible-vault view $vaultFile --vault-password-file=~/.tmpsecret | grep 'aspera_password\:' | awk -F "'" '{print $2}'
+}
+
+export ASPERA_USER=aspera
+export ASPERA_PASSWORD=$(getAsperaPassword)
 
 function current_host()
 {
@@ -387,6 +398,8 @@ function send()
 
     log_info "Sending message: Posting to ${host} (${instigator} token: ${token}) the following JSON payload:\n ${json}"
 
+    log_info "POSTING: curl -k -H \"Authorization: Basic ${token}\" -X POST https://${host}/ops/transfers -d ${json}"
+
     id=$(eval $(echo curl -k -H \"Authorization: Basic ${token}\" -X POST https://${host}/ops/transfers -d ${json}) 2>/dev/null | ${JQ} '.id' | awk -F '"' '{print $2}') \
       || { log_error "Failed to post json to 'https://${host}/ops/transfers' with token '${token}' "; return 1; }
 
@@ -403,6 +416,7 @@ function get_transfer_status()
     local id=$3
     [[ -z "$id" ]] && id=$TX_ID
 
+    log_info "GETTING STATUS: curl -ki -H 'Authorization: Basic ${token}' -X GET https://${host}/ops/transfers/${id}"
     curl -ki -H "Authorization: Basic ${token}" -X GET https://${host}/ops/transfers/${id} 2>/dev/null
     LOG_EXIT
 }
@@ -682,6 +696,14 @@ function run_tests()
     for ((i = 0; i < ${#TESTS[@]}; i++))
     do
         do_test ${TESTS[$i]} || { print_details ${TESTS[$i]}; return 1; }
+    done
+}
+
+function printAllDetails()
+{
+    for ((i = 0; i < ${#TESTS[@]}; i++))
+    do
+        print_details ${TESTS[$i]}
     done
 }
 

@@ -26,6 +26,7 @@ source "$SOURCE_PATH/common.sh"
 ADDITONAL_ARGS_EXTRACT_SCRIPT=extractArgs
 INITIALISE_SCRIPT=wrapper_initialise
 FINALISE_SCRIPT=wrapper_finalise
+VALIDATE_ARGS=validate_args
 
 ONLY_SOURCE=false
 GLOBAL=false # Variable directing whether the scripts are centrally (globally) organised - e.g. through nfs.
@@ -115,6 +116,11 @@ function extractFunctionParameters() {
   log_trace "Extracting function parameters: function = $func : paramters = $*"
 
   FUNCTION_PARAMETERS=$@
+}
+
+function validate_args()
+{
+  echo "" &> /dev/null
 }
 
 function wrapper_initialise()
@@ -334,6 +340,16 @@ function wrapper()
     then
       if [ -z "$FUNC" ]
       then
+        if [ ! -z "$VALIDATE_ARGS" ]
+        then
+          $VALIDATE_ARGS
+          if [ $? != 0 ]
+          then
+              log_error "Failed to validate arguments, exiting"
+              result=253
+          fi
+        fi
+
         executeScript
         result=$?
       else

@@ -1,4 +1,4 @@
-# ar_osc_test
+# Platform Setup
 
 This is a test project that can be used as a sample to launch builds.
 
@@ -236,3 +236,23 @@ Build Aspera:
                    --extra-vars '{"targets": ['${TARGETS}']}' \
                    playbooks/aspera.yml
 ```
+
+# Teardown
+In order to completely test everything it is necessary to reset the 
+current environment, i.e.
+
+1. Delete projects in Openshift, or remove using appgroup label (oc delete -l 'appgroup=<label, e.g. central>' all,pvc,secret,cm)
+2. Execute the reset-secrets playbook
+3. Delete the CA driectory in the tls ca git repository (referenced
+in the 'app-environment.yml' file in the git repository used in the
+'ar_os_environment' role)
+
+# Rebuild
+Use the following steps to rebuild
+
+| Playbook         | Verification                                                                                                                                                                                                                                                                                                                                                                                    |
+| -----            | -----------                                                                                                                                                                                                                                                                                                                                                                                     |
+| prepare          | On success, a new 'app-environment.vault' file should have been created and certificates placed in the 'generated/certs' directory in the git repository used in 'ar_os_environment'. Those certificates must match those stored in the tls ca git repository in the '<ca-name>/out' directory. Also those certificates should correspond to the keys held in the 'app-environment.vault' file. |
+| amq-broker       | Check log files for errors, Check message transfers between brokers via interconnects using Broker console to send messages from Central to Deployed and visa versa                                                                                                                                                                                                                             |
+| amq-interconnect | Check log files for errors, Check message transfers between brokers via interconnects using Broker console to send messages from Central to Deployed and visa versa                                                                                                                                                                                                                             |
+| aspera           | Run the aspera-test.sh script and ensure all tests pass                                                                                                                                                                                                                                                                                                                                         |
